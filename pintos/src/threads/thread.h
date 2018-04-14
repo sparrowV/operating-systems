@@ -13,7 +13,8 @@ enum thread_status
     THREAD_RUNNING,     /* Running thread. */
     THREAD_READY,       /* Not running but ready to run. */
     THREAD_BLOCKED,     /* Waiting for an event to trigger. */
-    THREAD_DYING        /* About to be destroyed. */
+    THREAD_DYING   ,     /* About to be destroyed. */
+  
   };
 
 /* Thread identifier type.
@@ -91,9 +92,12 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
+    int64_t sleeping_time; //added by me
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+
+
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -139,5 +143,9 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+void put_thread_to_sleep(int64_t tick_number);
+void check_threads_sleeping_time(void);
+
 
 #endif /* threads/thread.h */

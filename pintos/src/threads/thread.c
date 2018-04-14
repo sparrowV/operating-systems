@@ -11,6 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "devices/timer.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -35,7 +36,10 @@ static struct thread *idle_thread;
 static struct thread *initial_thread;
 
 /* Lock used by allocate_tid(). */
-static struct lock tid_lock;
+static struct lock tid_lock; 
+
+
+static struct list sleeping_threads_list;
 
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame
@@ -92,6 +96,7 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
+  list_init(&sleeping_threads_list);
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -137,6 +142,9 @@ thread_tick (void)
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
     intr_yield_on_return ();
+
+ check_threads_sleeping_time();  
+  
 }
 
 /* Prints thread statistics. */
@@ -146,6 +154,72 @@ thread_print_stats (void)
   printf ("Thread: %lld idle ticks, %lld kernel ticks, %lld user ticks\n",
           idle_ticks, kernel_ticks, user_ticks);
 }
+
+
+
+
+void put_thread_to_sleep(int64_t tick_number){
+  enum intr_level old_level;
+  old_level =  intr_disable();
+
+  struct thread * current = thread_current();
+  current->sleeping_time = tick_number + timer_ticks();
+
+  if(current != idle_thread)
+
+    list_push_back(&sleeping_threads_list, &current->elem);
+
+  thread_block();
+
+  intr_set_level(old_level);
+
+
+}
+
+void check_threads_sleeping_time(void){
+   if (list_empty (&sleeping_threads_list))
+    return;
+
+  int64_t t = timer_ticks();
+  struct list_elem * current = list_begin(&sleeping_threads_list);
+
+  while(current != list_end(&sleeping_threads_list)){
+    struct  thread * current_thread = list_entry (current, struct thread, elem);
+
+    struct list_elem * next = list_next(current);
+
+    if(current_thread->sleeping_time >t){
+
+          current = next;
+    }else{
+
+       enum intr_level old_level;
+       old_level = intr_disable();
+      current_thread->sleeping_time = 0;
+      list_remove(current);
+
+
+      thread_unblock(current_thread);
+            current = next;
+      intr_set_level(old_level);
+      
+
+
+    }
+  }
+ 
+}
+
+
+
+
+
+
+
+
+
+
+
 
 /* Creates a new kernel thread named NAME with the given initial
    PRIORITY, which executes FUNCTION passing AUX as the argument,
@@ -582,3 +656,4 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+

@@ -922,8 +922,9 @@ sub exec_setitimer {
     exit (1);
 }
 
+
 sub SIGVTALRM {
-    use Config;
+   use Config;
     my $i = 0;
     foreach my $name (split(' ', $Config{sig_name})) {
 	return $i if $name eq 'VTALRM';
