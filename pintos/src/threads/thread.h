@@ -91,6 +91,7 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
+    int effect_priority;
     struct list_elem allelem;           /* List element for all threads list. */
     int64_t sleeping_time; //added by me
 
@@ -146,6 +147,7 @@ int thread_get_load_avg (void);
 
 void put_thread_to_sleep(int64_t tick_number);
 void check_threads_sleeping_time(void);
+bool thread_effect_priority_cmp(const struct list_elem *first,const  struct list_elem *second, void *aux);
 
 
 #endif /* threads/thread.h */

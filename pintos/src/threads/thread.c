@@ -75,6 +75,8 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
+
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -275,6 +277,14 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
+  enum intr_level old_level;
+  old_level = intr_disable();
+  
+ 
+  if(thread_current()->effect_priority < t->effect_priority) thread_yield();
+
+  intr_set_level(old_level);
+
   return tid;
 }
 
@@ -294,6 +304,16 @@ thread_block (void)
   schedule ();
 }
 
+
+
+ bool thread_effect_priority_cmp(const struct list_elem *first,const  struct list_elem *second, void *aux){
+	const struct thread *first_thread = list_entry(first, struct thread, elem);
+	const struct thread *second_thread = list_entry(second, struct thread, elem);
+	bool result = (first_thread->effect_priority > second_thread->effect_priority);
+  return result;
+}
+
+
 /* Transitions a blocked thread T to the ready-to-run state.
    This is an error if T is not blocked.  (Use thread_yield() to
    make the running thread ready.)
@@ -311,7 +331,9 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+
+ list_insert_ordered (&ready_list, &t->elem,
+                          thread_effect_priority_cmp, NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -409,8 +431,33 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority)
 {
-  thread_current ()->priority = new_priority;
+    enum intr_level old_level = intr_disable();
+    struct list_elem * max_elem = list_max(&ready_list,thread_effect_priority_cmp,NULL);
+    struct thread * max_thread = list_entry(max_elem,struct thread,elem);
+    bool wasMax = false;
+    if(thread_current()->tid == max_thread->tid) wasMax = true;
+
+
+    thread_current ()->priority = new_priority;
+    thread_current()->effect_priority = new_priority;
+
+    struct list_elem * new_max_elem = list_max(&ready_list,thread_effect_priority_cmp,NULL);
+    struct thread * new_max_thread = list_entry(new_max_elem,struct thread,elem);
+    
+    bool isMax= false;
+
+   if(thread_current()->tid == new_max_thread->tid) isMax = true; 
+
+
+  list_sort(&ready_list,thread_effect_priority_cmp,NULL);
+
+    if(!(wasMax && isMax)) thread_yield();
+
+    intr_set_level (old_level);   
+
 }
+
+
 
 /* Returns the current thread's priority. */
 int
@@ -536,6 +583,7 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+  t->effect_priority = priority; //added
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();
@@ -564,6 +612,8 @@ alloc_frame (struct thread *t, size_t size)
 static struct thread *
 next_thread_to_run (void)
 {
+ // list_sort(&ready_list,thread_effect_priority_cmp,NULL);
+
   if (list_empty (&ready_list))
     return idle_thread;
   else
@@ -626,6 +676,8 @@ thread_schedule_tail (struct thread *prev)
 static void
 schedule (void)
 {
+
+ list_sort(&ready_list,thread_effect_priority_cmp,NULL);
   struct thread *cur = running_thread ();
   struct thread *next = next_thread_to_run ();
   struct thread *prev = NULL;
