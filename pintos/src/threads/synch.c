@@ -32,6 +32,8 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 
+
+
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
    manipulating it:
@@ -40,7 +42,12 @@
      decrement it.
 
    - up or "V": increment the value (and wake up one waiting
+
+   
      thread, if any). */
+
+
+bool semaphore_cmp (const struct list_elem *first, const struct list_elem *second, void *aux UNUSED) ;
 void
 sema_init (struct semaphore *sema, unsigned value)
 {
@@ -313,8 +320,8 @@ cond_wait (struct condition *cond, struct lock *lock)
 
 
   sema_init (&waiter.semaphore, 0);
- // list_push_back (&cond->waiters, &waiter.elem);
- list_insert_ordered(&cond -> waiters, &waiter.elem, thread_effect_priority_cmp, NULL);
+ /
+ list_insert_ordered(&cond -> waiters, &waiter.elem, semaphore_cmp, NULL);
   lock_release (lock);
   sema_down (&waiter.semaphore);
   lock_acquire (lock);
@@ -327,6 +334,7 @@ cond_wait (struct condition *cond, struct lock *lock)
    An interrupt handler cannot acquire a lock, so it does not
    make sense to try to signal a condition variable within an
    interrupt handler. */
+
 void
 cond_signal (struct condition *cond, struct lock *lock UNUSED)
 {
@@ -337,7 +345,7 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
 
   if (!list_empty (&cond->waiters)){
 
-  list_sort(&cond->waiters,thread_effect_priority_cmp,NULL);
+  list_sort(&cond->waiters,semaphore_cmp,NULL);
     sema_up (&list_entry (list_pop_front (&cond->waiters),
                           struct semaphore_elem, elem)->semaphore);
 
@@ -361,3 +369,40 @@ cond_broadcast (struct condition *cond, struct lock *lock)
   while (!list_empty (&cond->waiters))
     cond_signal (cond, lock);
 }
+
+bool semaphore_cmp (const struct list_elem *first, const struct list_elem *second, void *aux UNUSED) 
+{
+
+  struct semaphore_elem *  first_semaphore_elem = list_entry(first, struct semaphore_elem, elem);
+  struct semaphore_elem * second_semaphore_elem = list_entry(second, struct semaphore_elem, elem);
+
+  if (list_empty(&second_semaphore_elem  -> semaphore.waiters))
+    return true;
+
+  if (list_empty(&first_semaphore_elem -> semaphore.waiters))
+    return false;
+
+/*
+  /* sort the order with waiters queue, make sure the priority is descending order */
+  //list_sort(&sa -> semaphore.waiters, (list_less_func *) &thread_effect_priority_cmp, NULL);
+
+  /* sort the order with waiters queue, make sure the priority is descending order */
+  //list_sort(&sb -> semaphore.waiters, (list_less_func *) &thread_effect_priority_cmp, NULL);
+
+  
+ struct list_elem * first_elem = list_front(&first_semaphore_elem -> semaphore.waiters);
+  struct thread * first_thread = list_entry(first_elem, struct thread, elem);
+
+  struct list_elem * second_elem = list_front(&second_semaphore_elem -> semaphore.waiters);
+  struct thread * second_thread = list_entry(second_elem, struct thread, elem);
+
+  return first_thread->effect_priority > second_thread->effect_priority ? true: false;
+  /*
+  if ((ta -> priority) > (tb -> priority))
+    return true;
+  
+  
+  return false;
+  */
+}
+
