@@ -567,6 +567,22 @@ is_thread (struct thread *t)
   return t != NULL && t->magic == THREAD_MAGIC;
 }
 
+
+void test_yield(void)
+{
+  struct thread *t;
+  
+  if (list_empty(&ready_list))
+    return;
+  
+  t = list_entry(list_front(&ready_list), struct thread, elem);
+
+  if ((thread_current() -> priority) < t -> priority)
+    thread_yield();
+}
+
+
+
 /* Does basic initialization of T as a blocked thread named
    NAME. */
 static void

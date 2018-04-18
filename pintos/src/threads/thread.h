@@ -148,6 +148,8 @@ int thread_get_load_avg (void);
 void put_thread_to_sleep(int64_t tick_number);
 void check_threads_sleeping_time(void);
 bool thread_effect_priority_cmp(const struct list_elem *first,const  struct list_elem *second, void *aux);
+void test_yield(void);
+
 
 
 #endif /* threads/thread.h */
