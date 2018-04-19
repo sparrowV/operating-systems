@@ -431,7 +431,22 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority)
 {
+
+
+   
     enum intr_level old_level = intr_disable();
+
+
+
+
+    //untill donation is released it should not change it priority
+    // printf("thread current priority is the foloowing bitch %d\n\n\n\n\n\n\n\n\n\n\n\n",thread_current()->priority);
+     //printf("thread current effect priority is the foloowing bitch %d\n\n\n\n\n\n\n\n\n\n\n\n",thread_current()->effect_priority);
+    if(thread_current()->effect_priority > thread_current()->priority){
+      printf("yes\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
+      return;
+    }
+
     struct list_elem * max_elem = list_max(&ready_list,thread_effect_priority_cmp,NULL);
     struct thread * max_thread = list_entry(max_elem,struct thread,elem);
     bool wasMax = false;
@@ -463,7 +478,10 @@ thread_set_priority (int new_priority)
 int
 thread_get_priority (void)
 {
-  return thread_current ()->priority;
+
+  
+ 
+  return thread_current()->effect_priority;
 }
 
 /* Sets the current thread's nice value to NICE. */
