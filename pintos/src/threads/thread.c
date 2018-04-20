@@ -195,8 +195,8 @@ void check_threads_sleeping_time(void){
           current = next;
     }else{
 
-       enum intr_level old_level;
-       old_level = intr_disable();
+      enum intr_level old_level;
+      old_level = intr_disable();
       current_thread->sleeping_time = 0;
       list_remove(current);
 
@@ -443,7 +443,7 @@ thread_set_priority (int new_priority)
     // printf("thread current priority is the foloowing bitch %d\n\n\n\n\n\n\n\n\n\n\n\n",thread_current()->priority);
      //printf("thread current effect priority is the foloowing bitch %d\n\n\n\n\n\n\n\n\n\n\n\n",thread_current()->effect_priority);
     if(thread_current()->effect_priority > thread_current()->priority){
-      printf("yes\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
+      thread_current()->priority = new_priority;
       return;
     }
 
@@ -619,6 +619,12 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->effect_priority = priority; //added
   t->magic = THREAD_MAGIC;
+
+  list_init(&t->acquired_locks);
+  list_init(&t->donated_on_lock);
+  // printf("%d\n", list_size(&t->acquired_locks));
+
+  // printf("%d\n", list_size(&t->donated_on_lock));
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);

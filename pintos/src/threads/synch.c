@@ -32,7 +32,7 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 
-
+struct list donated_locks;
 
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
@@ -222,19 +222,30 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
-    enum intr_level old_level = intr_disable();
+
+  enum intr_level old_level = intr_disable();
   if(lock->holder != NULL){
     if(thread_current()->effect_priority > (lock->holder)->effect_priority){
      // printf("yeah\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
         (lock->holder)->effect_priority = thread_current()->effect_priority;
-       //printf("here\n\n\n\n\n");
+       // (lock->holder)->donated_on_lock = lock;
+      //  printf("here0\n\n\n\n\n");
+        list_push_back(&((lock->holder)->donated_on_lock), &lock->elem);
+       // printf("here\n\n\n\n\n");
+       // printf("%d\n", list_size(&lock->holder->acquired_locks));
+        ASSERT(&lock->holder->donated_on_lock != NULL);
+        //printf("%d\n", list_size(&lock->holder->donated_on_lock));
+        //printf("here1\n\n\n\n\n");
+
         
     }
 
   }
- intr_set_level(old_level);
+
+  intr_set_level(old_level);
 
   sema_down (&lock->semaphore);
+  list_push_back(&thread_current()->acquired_locks, &lock->elem);
   lock->holder = thread_current ();
 }
 
@@ -268,7 +279,26 @@ lock_release (struct lock *lock)
 {
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
- (lock->holder)->effect_priority = (lock->holder)->priority;
+
+  struct thread *cur = thread_current();
+
+  struct list_elem *e;
+  //   printf("%d\n", list_size(&cur->acquired_locks));
+
+  // printf("%d\n", list_size(&cur->donated_on_lock));
+      // for (e = list_begin (&cur->donated_on_lock); e != list_end (&cur->donated_on_lock);
+      //      e = list_next (e))
+      //               printf("Raaxdeeeba\n");
+
+      //   {
+      //     struct lock *f = list_entry (e, struct lock, elem);
+      //     if (f == lock) {
+      //       //printf("Raaxdeeeba\n");
+      //      (lock->holder)->effect_priority = (lock->holder)->priority;
+      //     }
+      //   }
+  //if(thread_current()->donated_on_lock != NULL && thread_current()->donated_on_lock == lock)
+      //(lock->holder)->effect_priority = (lock->holder)->priority;
   lock->holder = NULL;
  
   sema_up (&lock->semaphore);
