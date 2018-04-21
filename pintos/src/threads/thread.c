@@ -617,11 +617,12 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+  t->wait_lock = NULL;
   t->effect_priority = priority; //added
   t->magic = THREAD_MAGIC;
 
   list_init(&t->acquired_locks);
-  list_init(&t->donated_on_lock);
+  //list_init(&t->donated_on_lock);
   // printf("%d\n", list_size(&t->acquired_locks));
 
   // printf("%d\n", list_size(&t->donated_on_lock));

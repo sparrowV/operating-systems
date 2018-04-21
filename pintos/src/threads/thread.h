@@ -97,7 +97,8 @@ struct thread
 
     /* lisst of aqcuired locks*/
     struct list acquired_locks;
-    struct list donated_on_lock;
+    struct lock *wait_lock;
+   // struct list donated_on_lock;
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 

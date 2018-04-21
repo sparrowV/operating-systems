@@ -241,7 +241,18 @@ struct list_elem * elem_in_list(struct list* list, struct list_elem *elem){
 }   
 
 
+void nested_donation(struct thread * t){
+  if(t->wait_lock == NULL){
+    return;
+  }
 
+  if(t->effect_priority < t->wait_lock->holder->effect_priority) return;
+
+  t->wait_lock->holder->effect_priority =  t->effect_priority;
+  nested_donation(t->wait_lock->holder);
+
+
+}
 
 void
 lock_acquire (struct lock *lock)
@@ -254,7 +265,7 @@ lock_acquire (struct lock *lock)
 
   enum intr_level old_level = intr_disable();
   if(lock->holder != NULL){
-
+    thread_current()->wait_lock = lock;
     if(thread_current()->effect_priority > (lock->max_don)){
      // printf("yeah\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
       //  (lock->holder)->effect_priority = thread_current()->effect_priority;
@@ -269,22 +280,10 @@ lock_acquire (struct lock *lock)
 
       if ((lock->holder)->effect_priority < thread_current()->effect_priority) {
         (lock->holder)->effect_priority = thread_current()->effect_priority;
+        nested_donation(lock->holder);
       }
 
-      /*
-      struct donated_priority * don_pr = malloc(sizeof(struct donated_priority));
-      don_pr->donated_pr = thread_current()->effect_priority;
-      ASSERT(&lock->priority_donated_list !=NULL);
-      list_insert_ordered(&lock->priority_donated_list,&don_pr->elem,lock_proirity_donate_cmp,NULL);
     
-      if( !elem_in_list(&((lock->holder)->donated_on_lock),&lock->elem)) {
-          list_push_back(&((lock->holder)->donated_on_lock), &lock->elem);
-        // list_insert_ordered(&((lock->holder)->donated_on_lock), &lock->elem,thread_effect_priority_cmp,NULL);
-      }
-    (lock->holder)->effect_priority = thread_current()->effect_priority;
-        
-    }
-    */
 
   }
   }
@@ -293,6 +292,7 @@ lock_acquire (struct lock *lock)
   intr_set_level(old_level);
 
   sema_down (&lock->semaphore);
+  thread_current()->wait_lock = NULL;
   list_push_back(&thread_current ()->acquired_locks,&lock->elem);
   lock->max_don = thread_current()->effect_priority;
  // list_push_back(&thread_current()->acquired_locks, &lock->elem);
@@ -351,32 +351,13 @@ lock_release (struct lock *lock)
           max = f->max_don;
         }
 
-
-        /*
-        if (f == lock) {
-          //printf("Raaxdeeeba\n");
-         // (lock->holder)->effect_priority = (lock->holder)->priority;
-         struct list * pr_don_list = &lock->priority_donated_list;
-         list_pop_front(pr_don_list); //remove max element from this lock's list
-
-         struct donated_priority  * max_priority = get_max(cur);
-         ASSERT(max_priority != NULL);
-         printf("max pr is %d",max_priority->donated_pr);
-         (lock->holder)->effect_priority = max_priority->donated_pr;
-
-        // (lock->holder)->effect_priority = list_entry(&cur->donated_on_lock,)
-         // list_remove(e);
-
-        }
-        */
       }
       if(max == 0) 
         cur->effect_priority = cur->priority;
       else
          cur->effect_priority = max;
       list_remove(&lock->elem);
-  //if(thread_current()->donated_on_lock != NULL && thread_current()->donated_on_lock == lock)
-      //(lock->holder)->effect_priority = (lock->holder)->priority;
+ 
   lock->holder = NULL;
  
   sema_up (&lock->semaphore);
