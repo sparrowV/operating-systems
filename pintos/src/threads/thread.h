@@ -94,6 +94,7 @@ struct thread
     int effect_priority;
     struct list_elem allelem;           /* List element for all threads list. */
     int64_t sleeping_time; //added by me
+    
 
     /* lisst of aqcuired locks*/
     struct list acquired_locks;

@@ -249,6 +249,7 @@ void nested_donation(struct thread * t){
   if(t->effect_priority < t->wait_lock->holder->effect_priority) return;
 
   t->wait_lock->holder->effect_priority =  t->effect_priority;
+  t->wait_lock->max_don = t->effect_priority;
   nested_donation(t->wait_lock->holder);
 
 
@@ -332,6 +333,8 @@ lock_release (struct lock *lock)
 {
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
+   enum intr_level old_level;
+  old_level = intr_disable();
 
   struct thread *cur = thread_current();
 
@@ -347,7 +350,7 @@ lock_release (struct lock *lock)
 
       {
         struct lock *f = list_entry (e, struct lock, elem);
-        if(f != lock && max < f->max_don){
+        if(f != lock &&  max < f->max_don){
           max = f->max_don;
         }
 
@@ -361,6 +364,8 @@ lock_release (struct lock *lock)
   lock->holder = NULL;
  
   sema_up (&lock->semaphore);
+
+   intr_set_level(old_level);
 }
 
 /* Returns true if the current thread holds LOCK, false
