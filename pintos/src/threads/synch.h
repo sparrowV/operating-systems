@@ -23,16 +23,11 @@ struct lock
   {
     struct list_elem elem;
     int max_don;
-  //  struct list priority_donated_list;
     struct thread *holder;      /* Thread holding lock (for debugging). */
     struct semaphore semaphore; /* Binary semaphore controlling access. */
   };
 
-// struct donated_priority{
-//   int donated_pr;
-//   struct list_elem elem;
 
-// };
 
 void lock_init (struct lock *);
 void lock_acquire (struct lock *);

@@ -485,6 +485,24 @@ list_unique (struct list *list, struct list *duplicates,
       elem = next;
 }
 
+/*element search*/
+struct list_elem * find(struct list* list, struct list_elem *elem){
+
+    if(list_empty(list)) return false;
+      struct list_elem *e;
+
+      for (e = list_begin (list); e != list_end (list);
+         e = list_next (e))
+         {
+                  if(e == elem){
+                       return e;
+                  }
+
+         }
+        return NULL;
+
+}
+
 /* Returns the element in LIST with the largest value according
    to LESS given auxiliary data AUX.  If there is more than one
    maximum, returns the one that appears earlier in the list.  If

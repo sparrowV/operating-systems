@@ -26,6 +26,7 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+#define MLFQ_SIZE PRI_MAX-PRI_MIN+1    /* MLFQ size*/
 
 /* A kernel thread or user process.
 
@@ -96,10 +97,9 @@ struct thread
     int64_t sleeping_time; //added by me
     
 
-    /* lisst of aqcuired locks*/
+    /* list of aqcuired locks*/
     struct list acquired_locks;
     struct lock *wait_lock;
-   // struct list donated_on_lock;
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 

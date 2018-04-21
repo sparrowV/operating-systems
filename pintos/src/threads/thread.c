@@ -24,6 +24,8 @@
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
+/*multi level feedback queue*/
+static struct list mlfq[MLFQ_SIZE];
 
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
@@ -96,7 +98,16 @@ thread_init (void)
   ASSERT (intr_get_level () == INTR_OFF);
 
   lock_init (&tid_lock);
+
+  if (thread_mlfqs) {
+    int i = 0;
+    for (; i < MLFQ_SIZE; ++i) {
+      list_init (& mlfq[i]);
+    }
+  }
+
   list_init (&ready_list);
+
   list_init (&all_list);
   list_init(&sleeping_threads_list);
 
@@ -204,22 +215,10 @@ void check_threads_sleeping_time(void){
       thread_unblock(current_thread);
             current = next;
       intr_set_level(old_level);
-      
-
-
     }
   }
  
 }
-
-
-
-
-
-
-
-
-
 
 
 
@@ -306,7 +305,7 @@ thread_block (void)
 
 
 
- bool thread_effect_priority_cmp(const struct list_elem *first,const  struct list_elem *second, void *aux){
+ bool thread_effect_priority_cmp(const struct list_elem *first,const  struct list_elem *second, void *aux UNUSED){
 	const struct thread *first_thread = list_entry(first, struct thread, elem);
 	const struct thread *second_thread = list_entry(second, struct thread, elem);
 	bool result = (first_thread->effect_priority > second_thread->effect_priority);
@@ -431,44 +430,36 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority)
 {
-
-
    
-    enum intr_level old_level = intr_disable();
+  enum intr_level old_level = intr_disable();
+
+  if(thread_current()->effect_priority > thread_current()->priority){
+    thread_current()->priority = new_priority;
+    return;
+  }
+
+  struct list_elem * max_elem = list_max(&ready_list,thread_effect_priority_cmp,NULL);
+  struct thread * max_thread = list_entry(max_elem,struct thread,elem);
+  bool wasMax = false;
+  if(thread_current()->tid == max_thread->tid) wasMax = true;
 
 
+  thread_current ()->priority = new_priority;
+  thread_current()->effect_priority = new_priority;
 
-
-    //untill donation is released it should not change it priority
-    // printf("thread current priority is the foloowing bitch %d\n\n\n\n\n\n\n\n\n\n\n\n",thread_current()->priority);
-     //printf("thread current effect priority is the foloowing bitch %d\n\n\n\n\n\n\n\n\n\n\n\n",thread_current()->effect_priority);
-    if(thread_current()->effect_priority > thread_current()->priority){
-      thread_current()->priority = new_priority;
-      return;
-    }
-
-    struct list_elem * max_elem = list_max(&ready_list,thread_effect_priority_cmp,NULL);
-    struct thread * max_thread = list_entry(max_elem,struct thread,elem);
-    bool wasMax = false;
-    if(thread_current()->tid == max_thread->tid) wasMax = true;
-
-
-    thread_current ()->priority = new_priority;
-    thread_current()->effect_priority = new_priority;
-
-    struct list_elem * new_max_elem = list_max(&ready_list,thread_effect_priority_cmp,NULL);
-    struct thread * new_max_thread = list_entry(new_max_elem,struct thread,elem);
+  struct list_elem * new_max_elem = list_max(&ready_list,thread_effect_priority_cmp,NULL);
+  struct thread * new_max_thread = list_entry(new_max_elem,struct thread,elem);
     
-    bool isMax= false;
+  bool isMax = false;
 
-   if(thread_current()->tid == new_max_thread->tid) isMax = true; 
+  if(thread_current()->tid == new_max_thread->tid) isMax = true; 
 
 
   list_sort(&ready_list,thread_effect_priority_cmp,NULL);
 
-    if(!(wasMax && isMax)) thread_yield();
+  if(!(wasMax && isMax)) thread_yield();
 
-    intr_set_level (old_level);   
+  intr_set_level (old_level);   
 
 }
 
@@ -622,10 +613,6 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
 
   list_init(&t->acquired_locks);
-  //list_init(&t->donated_on_lock);
-  // printf("%d\n", list_size(&t->acquired_locks));
-
-  // printf("%d\n", list_size(&t->donated_on_lock));
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
@@ -653,8 +640,6 @@ alloc_frame (struct thread *t, size_t size)
 static struct thread *
 next_thread_to_run (void)
 {
- // list_sort(&ready_list,thread_effect_priority_cmp,NULL);
-
   if (list_empty (&ready_list))
     return idle_thread;
   else
