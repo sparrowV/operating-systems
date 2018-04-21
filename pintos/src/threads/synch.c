@@ -204,7 +204,8 @@ lock_init (struct lock *lock)
   ASSERT (lock != NULL);
 
   lock->holder = NULL;
-  list_init(&lock->priority_donated_list);
+  lock->max_don = 0;
+  
   sema_init (&lock->semaphore, 1);
 }
 
@@ -218,7 +219,7 @@ lock_init (struct lock *lock)
    we need to sleep. */
 
 
-bool elem_in_list(struct list* list, struct list_elem *elem){
+struct list_elem * elem_in_list(struct list* list, struct list_elem *elem){
 
     if(list_empty(list)) return false;
       struct list_elem *e;
@@ -231,25 +232,21 @@ bool elem_in_list(struct list* list, struct list_elem *elem){
                   if(e == elem){
                        // list_push_back(&((lock->holder)->donated_on_lock), &lock->elem);
                        // list_insert_ordered(&((lock->holder)->donated_on_lock), &lock->elem,thread_effect_priority_cmp,NULL);
-                       return true;
+                       return e;
                   }
 
          }
-        return false;
+        return NULL;
 
 }   
 
-bool lock_proirity_donate_cmp(const struct list_elem *first,const  struct list_elem *second, void  * aux UNUSED){
-  const struct donated_priority * elem1 = list_entry(first, struct donated_priority, elem);
-	const struct donated_priority * elem2 = list_entry(second, struct donated_priority, elem);
-	bool result = (elem1->donated_pr > elem2->donated_pr);
-  return result;
 
 
-}
+
 void
 lock_acquire (struct lock *lock)
 {
+  
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
@@ -257,18 +254,29 @@ lock_acquire (struct lock *lock)
 
   enum intr_level old_level = intr_disable();
   if(lock->holder != NULL){
-    if(thread_current()->effect_priority > (lock->holder)->effect_priority){
+
+    if(thread_current()->effect_priority > (lock->max_don)){
      // printf("yeah\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
       //  (lock->holder)->effect_priority = thread_current()->effect_priority;
        // (lock->holder)->donated_on_lock = lock;
       //  printf("here0\n\n\n\n\n");
        struct thread *cur = lock->holder;
-      
+
+      //struct list_elem * lock_elem = elem_in_list(&lock->holder->donated_on_lock,&lock_elem);
+      // if(lock->max_don < thread_current()->effect_priority){
+        lock->max_don = thread_current()->effect_priority;
+      // }
+
+      if ((lock->holder)->effect_priority < thread_current()->effect_priority) {
+        (lock->holder)->effect_priority = thread_current()->effect_priority;
+      }
+
+      /*
       struct donated_priority * don_pr = malloc(sizeof(struct donated_priority));
       don_pr->donated_pr = thread_current()->effect_priority;
+      ASSERT(&lock->priority_donated_list !=NULL);
       list_insert_ordered(&lock->priority_donated_list,&don_pr->elem,lock_proirity_donate_cmp,NULL);
     
-
       if( !elem_in_list(&((lock->holder)->donated_on_lock),&lock->elem)) {
           list_push_back(&((lock->holder)->donated_on_lock), &lock->elem);
         // list_insert_ordered(&((lock->holder)->donated_on_lock), &lock->elem,thread_effect_priority_cmp,NULL);
@@ -276,15 +284,21 @@ lock_acquire (struct lock *lock)
     (lock->holder)->effect_priority = thread_current()->effect_priority;
         
     }
+    */
 
   }
-
+  }
+  
+  
   intr_set_level(old_level);
 
   sema_down (&lock->semaphore);
+  list_push_back(&thread_current ()->acquired_locks,&lock->elem);
+  lock->max_don = thread_current()->effect_priority;
  // list_push_back(&thread_current()->acquired_locks, &lock->elem);
   lock->holder = thread_current ();
 }
+
 
 /* Tries to acquires LOCK and returns true if successful or false
    on failure.  The lock must not already be held by the current
@@ -310,41 +324,9 @@ lock_try_acquire (struct lock *lock)
 
    An interrupt handler cannot acquire a lock, so it does not
    make sense to try to release a lock within an interrupt
-   handler. */
+   handler. */  
 
-struct donated_priority * get_max(struct thread * t){
-  struct list * donated_list = &t->donated_on_lock;
-  struct list_elem *e;
-  struct donated_priority *res;
-  int max = -1;
-  struct donated_priority *cur;
-  for (e = list_begin (donated_list); e != list_end (donated_list);
-         e = list_next (e))
-                 
-
-      {
-          struct lock *f = list_entry (e, struct lock, elem);
-          if(!list_empty(&f->priority_donated_list)){
-          cur =  list_entry(list_front(&f->priority_donated_list),struct donated_priority,elem);
-          if (cur->donated_pr > max) {
-            max = cur->donated_pr;
-            res = cur;
-          }
-
-
-      
-      }else{
-          list_remove(e);
-
-      }
-
-      }
-
-      
-
-return res;
-
-}   
+  
 void
 lock_release (struct lock *lock)
 {
@@ -358,12 +340,19 @@ lock_release (struct lock *lock)
 
   // printf("%d\n", list_size(&cur->donated_on_lock));
   //  (lock->holder)->effect_priority = (lock->holder)->priority;
-    for (e = list_begin (&cur->donated_on_lock); e != list_end (&cur->donated_on_lock);
+  int max = 0;
+    for (e = list_begin (&cur->acquired_locks); e != list_end (&cur->acquired_locks);
          e = list_next (e))
                  
 
       {
         struct lock *f = list_entry (e, struct lock, elem);
+        if(f != lock && max < f->max_don){
+          max = f->max_don;
+        }
+
+
+        /*
         if (f == lock) {
           //printf("Raaxdeeeba\n");
          // (lock->holder)->effect_priority = (lock->holder)->priority;
@@ -379,7 +368,13 @@ lock_release (struct lock *lock)
          // list_remove(e);
 
         }
+        */
       }
+      if(max == 0) 
+        cur->effect_priority = cur->priority;
+      else
+         cur->effect_priority = max;
+      list_remove(&lock->elem);
   //if(thread_current()->donated_on_lock != NULL && thread_current()->donated_on_lock == lock)
       //(lock->holder)->effect_priority = (lock->holder)->priority;
   lock->holder = NULL;
