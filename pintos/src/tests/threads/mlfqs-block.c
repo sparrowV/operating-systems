@@ -41,7 +41,7 @@ test_mlfqs_block (void)
     continue;
 
   msg ("Main thread releasing lock.");
-  msg("pr MIAN is : %d",thread_current()->priority);
+ // msg("pr MIAN is : %d",thread_current()->priority);
   lock_release (&lock);
 
   msg ("Block thread should have already acquired lock.");
@@ -59,7 +59,7 @@ block_thread (void *lock_)
     continue;
 
   msg ("Block thread acquiring lock...");
-  msg("pr is : %d",thread_current()->priority);
+
   lock_acquire (lock);
 
   msg ("...got it.");
