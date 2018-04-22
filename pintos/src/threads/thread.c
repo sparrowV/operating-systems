@@ -41,6 +41,9 @@ static struct thread *initial_thread;
 static struct lock tid_lock; 
 
 
+static fixed_point_t load_avg;
+
+
 static struct list sleeping_threads_list;
 
 /* Stack frame for kernel_thread(). */
@@ -76,6 +79,8 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
+static struct thread * choose_thread_from_mlfq(void);
+void count_load_avg(void);
 
 
 
@@ -100,11 +105,13 @@ thread_init (void)
   lock_init (&tid_lock);
 
   if (thread_mlfqs) {
-    int i = 0;
+    int i = PRI_MIN;
     for (; i < MLFQ_SIZE; ++i) {
       list_init (& mlfq[i]);
     }
   }
+ // load_avg = fix_int(0);
+ load_avg = fix_int(0);
 
   list_init (&ready_list);
 
@@ -177,9 +184,9 @@ void put_thread_to_sleep(int64_t tick_number){
 
   struct thread * current = thread_current();
   current->sleeping_time = tick_number + timer_ticks();
-
+  
+  
   if(current != idle_thread)
-
     list_push_back(&sleeping_threads_list, &current->elem);
 
   thread_block();
@@ -208,15 +215,19 @@ void check_threads_sleeping_time(void){
 
       enum intr_level old_level;
       old_level = intr_disable();
-      current_thread->sleeping_time = 0;
+      current_thread->sleeping_time =  0;
       list_remove(current);
 
-
+    //printf("unblockER's  named %s\n",thread_current()->name);
+     //printf("unblockEe  name %s\n",current_thread->name);
       thread_unblock(current_thread);
+  
             current = next;
+            //   intr_yield_on_return();
       intr_set_level(old_level);
     }
   }
+
  
 }
 
@@ -331,8 +342,24 @@ thread_unblock (struct thread *t)
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
 
+ if(t != idle_thread){
+   if(thread_mlfqs){
+    // printf("thread is being unblcoked %s\n",t->name);
+  //  list_push_back(mlfq + t->effect_priority - PRI_MIN);
+  ASSERT(mlfq + t->priority - PRI_MIN != NULL);
+   //if(thread_current() != idle_thread)
+     list_push_back (mlfq + t->priority - PRI_MIN, &t->elem);
+  // printf("list size is %d\n",list_size(mlfq + t->priority - PRI_MIN));
+   // printf("thread named :  has priority \n\n");                      
+  }else{
+
  list_insert_ordered (&ready_list, &t->elem,
                           thread_effect_priority_cmp, NULL);
+
+  }
+ }   
+   
+//printf("thread name is %s\n",t->name);               
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -403,7 +430,13 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread)
+    if(thread_mlfqs){
+      list_push_back(mlfq + cur->priority - PRI_MIN,&cur->elem);
+
+    }else{
     list_push_back (&ready_list, &cur->elem);
+
+    }
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -486,16 +519,42 @@ thread_set_nice (int nice UNUSED)
 int
 thread_get_nice (void)
 {
-  /* Not yet implemented. */
-  return 0;
+  return thread_current()->nice_value;
+ 
+}
+
+
+
+void count_load_avg(void){
+  if(thread_mlfqs) {
+  int cnt = 0;
+  int priority;
+  //printf("load avg thread NAME is %s\n",thread_current()->name);
+  for (priority = PRI_MIN; priority <= PRI_MAX; ++priority){
+    struct list *list_with_cur_priority = mlfq + (priority - PRI_MIN);
+    cnt += list_size(list_with_cur_priority);
+    //printf("priority is %d  size is : %d \n\n",priority,cnt);
+  }
+  struct thread *cur = thread_current();
+  if ((cur != idle_thread) && (cur->status == THREAD_RUNNING)) cnt++;
+ // printf("count is : %d\n\n",cnt);
+ // printf("%d  xv",fix_round(fix_div (__mk_fix (100), __mk_fix(60))));
+  load_avg = fix_add(fix_mul (fix_div (fix_int  (59),fix_int  (60)),  load_avg),
+                       fix_mul (fix_div (fix_int   (1),fix_int  (60)),  fix_int (cnt) ));
+                      // printf("load avg is : %d\n\n",load_avg);
+
+
+  }                     
 }
 
 /* Returns 100 times the system load average. */
 int
 thread_get_load_avg (void)
 {
-  /* Not yet implemented. */
-  return 0;
+    
+  return fix_round(fix_mul(load_avg,  fix_int (100)));
+ //return load_avg;
+  //return 0;
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
@@ -608,6 +667,7 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+  t->nice_value = 0;
   t->wait_lock = NULL;
   t->effect_priority = priority; //added
   t->magic = THREAD_MAGIC;
@@ -632,6 +692,25 @@ alloc_frame (struct thread *t, size_t size)
   return t->stack;
 }
 
+
+struct thread * choose_thread_from_mlfq(){
+  int i=PRI_MAX;
+  for(; i>=PRI_MIN;i--){
+    if(!list_empty(mlfq + i) ){
+      struct thread * t= list_entry (list_front (mlfq + i), struct thread, elem);
+      if(t->status == THREAD_READY){
+   //   printf("thread chosen is %s\n", list_entry (list_front (mlfq + i), struct thread, elem)->name);
+      list_remove(&t->elem);
+      return t; 
+      }
+    }
+  }
+  return idle_thread;
+
+}
+
+
+
 /* Chooses and returns the next thread to be scheduled.  Should
    return a thread from the run queue, unless the run queue is
    empty.  (If the running thread can continue running, then it
@@ -640,10 +719,16 @@ alloc_frame (struct thread *t, size_t size)
 static struct thread *
 next_thread_to_run (void)
 {
+  if(thread_mlfqs){
+    return choose_thread_from_mlfq();
+  }else{
+
   if (list_empty (&ready_list))
     return idle_thread;
   else
     return list_entry (list_pop_front (&ready_list), struct thread, elem);
+
+  }
 }
 
 /* Completes a thread switch by activating the new thread's page

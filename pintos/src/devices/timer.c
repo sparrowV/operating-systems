@@ -93,7 +93,7 @@ timer_sleep (int64_t ticks)
  
 
   ASSERT (intr_get_level () == INTR_ON);
-  
+   // printf("thread sleeping is %s\n\n",thread_current()->name);
   /*
   while (timer_elapsed (start) < ticks)
     thread_yield ();
@@ -185,6 +185,14 @@ timer_interrupt (struct intr_frame *args UNUSED)
   ticks++;
  
   thread_tick ();
+
+  if(thread_mlfqs){
+
+     if(ticks % TIMER_FREQ == 0){
+      count_load_avg();
+    //  update_recent_cpu();
+    }
+  }
  
  
 }
