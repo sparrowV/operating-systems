@@ -31,6 +31,7 @@
 #include <string.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "tests/threads/tests.h"
 
 struct list donated_locks;
 
@@ -76,13 +77,15 @@ sema_down (struct semaphore *sema)
   while (sema->value == 0)
     {
      list_insert_ordered(&sema->waiters,&thread_current ()->elem,thread_effect_priority_cmp,NULL);
-    // printf("thread waiting name is %s\n",thread_current()->name);
+     
        
       thread_block ();
+
+     
     }
 
 
-    //printf("threads name is n");
+   
   sema->value--;
   intr_set_level (old_level);
 }
@@ -126,6 +129,7 @@ sema_up (struct semaphore *sema)
   ASSERT (sema != NULL);
   
   old_level = intr_disable ();
+    sema->value++;
   list_sort(&sema->waiters,thread_effect_priority_cmp,NULL);
   if (!list_empty (&sema->waiters)){
     
@@ -136,10 +140,13 @@ sema_up (struct semaphore *sema)
  //   printf("sdsds");                         
 
   }
-  sema->value++;
 
-  if (!intr_context())
-     test_yield();
+
+  
+    // test_yield();
+    if(!intr_context())
+    thread_yield();
+     
   intr_set_level (old_level);
 }
 
@@ -256,15 +263,18 @@ lock_acquire (struct lock *lock)
             }
         }
 
+      }else{
+      
       }
 }
   
   
-  intr_set_level(old_level);
+intr_set_level(old_level);
 
 
   sema_down (&lock->semaphore);
- // printf("thread aqcuied lock is %s\n",thread_current()->name);
+
+
   if(!thread_mlfqs){
     thread_current()->wait_lock = NULL;
 
@@ -459,20 +469,25 @@ bool semaphore_cmp (const struct list_elem *first, const struct list_elem *secon
   struct semaphore_elem *  first_semaphore_elem = list_entry(first, struct semaphore_elem, elem);
   struct semaphore_elem * second_semaphore_elem = list_entry(second, struct semaphore_elem, elem);
 
-  if (list_empty(&second_semaphore_elem  -> semaphore.waiters))
+  
+
+  if(!list_empty(&second_semaphore_elem  -> semaphore.waiters) && !list_empty(&first_semaphore_elem -> semaphore.waiters)){
+      struct list_elem * first_elem = list_front(&first_semaphore_elem -> semaphore.waiters);
+        struct thread * first_thread = list_entry(first_elem, struct thread, elem);
+
+        struct list_elem * second_elem = list_front(&second_semaphore_elem -> semaphore.waiters);
+        struct thread * second_thread = list_entry(second_elem, struct thread, elem);
+
+        return first_thread->effect_priority > second_thread->effect_priority ? true: false;
+
+  }else{
+    if (list_empty(&second_semaphore_elem  -> semaphore.waiters))
     return true;
 
-  if (list_empty(&first_semaphore_elem -> semaphore.waiters))
+   if (list_empty(&first_semaphore_elem -> semaphore.waiters))
     return false;
 
-  
- struct list_elem * first_elem = list_front(&first_semaphore_elem -> semaphore.waiters);
-  struct thread * first_thread = list_entry(first_elem, struct thread, elem);
-
-  struct list_elem * second_elem = list_front(&second_semaphore_elem -> semaphore.waiters);
-  struct thread * second_thread = list_entry(second_elem, struct thread, elem);
-
-  return first_thread->effect_priority > second_thread->effect_priority ? true: false;
+  }
 
 }
 
