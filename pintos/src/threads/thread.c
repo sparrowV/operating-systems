@@ -110,8 +110,8 @@ thread_init (void)
       list_init (& mlfq[i]);
     }
   }
- // load_avg = fix_int(0);
- load_avg = fix_int(0);
+
+  load_avg = fix_int(0);
 
   list_init (&ready_list);
 
@@ -210,7 +210,7 @@ void check_threads_sleeping_time(void){
 
     if(current_thread->sleeping_time >t){
 
-          current = next;
+      current = next;
     }else{
 
       enum intr_level old_level;
@@ -218,16 +218,12 @@ void check_threads_sleeping_time(void){
       current_thread->sleeping_time =0;
       list_remove(current);
 
-    //printf("unblockER's  named %s\n",thread_current()->name);
-     //printf("unblockEe  name %s\n",current_thread->name);
       thread_unblock(current_thread);
   
-            current = next;
-            //   intr_yield_on_return();
+      current = next;
       intr_set_level(old_level);
     }
   }
-
  
 }
 
@@ -344,13 +340,10 @@ thread_unblock (struct thread *t)
 
  if(t != idle_thread){
    if(thread_mlfqs){
-    // printf("thread is being unblcoked %s\n",t->name);
-  //  list_push_back(mlfq + t->effect_priority - PRI_MIN);
-  ASSERT(mlfq + t->priority - PRI_MIN != NULL);
-   //if(thread_current() != idle_thread)
-     list_push_back (mlfq + t->priority - PRI_MIN, &t->elem);
-  // printf("list size is %d\n",list_size(mlfq + t->priority - PRI_MIN));
-   // printf("thread named :  has priority \n\n");                      
+
+    ASSERT(mlfq + t->priority - PRI_MIN != NULL);
+    list_push_back (mlfq + t->priority - PRI_MIN, &t->elem);
+                        
   }else{
 
  list_insert_ordered (&ready_list, &t->elem,
@@ -359,7 +352,6 @@ thread_unblock (struct thread *t)
   }
  }   
    
-//printf("thread name is %s\n",t->name);               
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -429,7 +421,7 @@ thread_yield (void)
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
- // if (cur != idle_thread)
+  if (cur != idle_thread) {
     if(thread_mlfqs){
       list_push_back(mlfq + cur->priority - PRI_MIN,&cur->elem);
 
@@ -437,6 +429,7 @@ thread_yield (void)
     list_push_back (&ready_list, &cur->elem);
 
     }
+  }
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -622,37 +615,35 @@ thread_get_nice (void)
 }
 
 
+static int count_ready_threads();
+
+static int count_ready_threads() {
+  int res = 0;
+  int i = PRI_MIN;
+  for (; i <= PRI_MAX; i++) {
+    res += list_size(&mlfq[i]);
+  }
+  if (thread_current() != idle_thread){
+    res++;
+  }
+  return res;
+}
 
 void count_load_avg(void){
-  if(thread_mlfqs) {
-  int cnt = 0;
-  int priority;
-  //printf("load avg thread NAME is %s\n",thread_current()->name);
-  for (priority = PRI_MIN; priority <= PRI_MAX; ++priority){
-    struct list *list_with_cur_priority = mlfq + (priority - PRI_MIN);
-    cnt += list_size(list_with_cur_priority);
-    //printf("priority is %d  size is : %d \n\n",priority,cnt);
-  }
-  struct thread *cur = thread_current();
-  if ((cur != idle_thread) && (cur->status == THREAD_RUNNING)) cnt++;
- // printf("count is : %d\n\n",cnt);
- // printf("%d  xv",fix_round(fix_div (__mk_fix (100), __mk_fix(60))));
-  load_avg = fix_add(fix_mul (fix_div (fix_int  (59),fix_int  (60)),  load_avg),
-                       fix_mul (fix_div (fix_int   (1),fix_int  (60)),  fix_int (cnt) ));
-                      // printf("load avg is : %d\n\n",load_avg);
+  int num_ready_threads = count_ready_threads();
 
-
-  }                     
+  load_avg = fix_add(fix_mul (fix_div (fix_int  (59),fix_int  (60)),load_avg),
+                       fix_mul (fix_div (fix_int   (1),fix_int  (60)),  fix_int (num_ready_threads) ));
+                   
+                  
 }
 
 /* Returns 100 times the system load average. */
 int
 thread_get_load_avg (void)
 {
-    
   return fix_round(fix_mul(load_avg,  fix_int (100)));
- //return load_avg;
-  //return 0;
+ 
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
@@ -813,9 +804,7 @@ struct thread * choose_thread_from_mlfq(){
   for(; i>=PRI_MIN;i--){
     if(!list_empty(mlfq + i) ){
       struct thread * t= list_entry (list_front (mlfq + i), struct thread, elem);
-     
-   //   printf("thread chosen is %s\n", list_entry (list_front (mlfq + i), struct thread, elem)->name);
-     // list_remove(&t->elem);
+ 
       return t; 
       
     }
