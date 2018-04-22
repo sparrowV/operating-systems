@@ -70,11 +70,49 @@ Giorgi Kobuladze <gkobu14@freeuni.edu.ge>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+In thread.h
+struct thread
+{
+	...
+	int effect_priority;		/* შექმნის მერე დასეტილი პრიორიტეტი */
+	struct list acquired_locks;	/* სია აღებული ლოქების შესანახად */
+    struct lock *wait_lock;		/* ლოქი რომელზეც ამჟამად ვიცდით */
+	...
+}
+
+In lock.h
+struct lock
+{
+	...
+	struct list_elem elem;		/* აღებული ლოქების სიაში ჩასამატებლად */
+    int max_don;				/* მაქსიმალური გადმოცემული პრიორიტეტი */
+	...	
+}
 
 
 >> B2: Explain the data structure used to track priority donation.
 >> Use ASCII art to diagram a nested donation.  (Alternately, submit a
 >> .png file.)
+
+ამისთვის ვიყენებთ აღებული ლოქებს სიას და ლოქს რომელზეც დაბლოკილი ვართ.
+მოქმედების პრინციპი დეტალურად იხილეთ B4 და B5 ნაწილებში.
+
+
+
+	T2  T3  T4
+	|  /
+	| /
+	L1
+	| 
+	|
+	T1
+    
+T1 ნაკადს აღებული აქვს L1 ლოქი და T2 და T3 ნაკადები, რომლებსაც უფრო დიდი
+პრიორიტეტი აქვთ ცდილობენ ამ ლოქის აღებას, მაგრამ T4 ნაკადი რომელიც T2-ზე
+და T3-ზე დაბალი პრიორიტეტის მქონეა და T1-ზე მეტი, არ აცდის T1-ს გაშვებას
+ამიტომაც T2 და T3 ვერ ეშვებიან მიუხედავად უფრო მაღალი პრიორიტეტისა.
+ამის გამო ვაკეთებთ პრიორიტეტების გადარიცხვებს.
+
 
 
 
@@ -83,14 +121,27 @@ Giorgi Kobuladze <gkobu14@freeuni.edu.ge>
 >> B3: How do you ensure that the highest priority thread waiting for
 >> a lock, semaphore, or condition variable wakes up first?
 
+სემაფორაზე მომლოდინეთა სიაში, ნაკადებს ვამატებთ პრიორიტეტის მიხედვით,
+ამოღება მოხდება შესაბამისად ყველაზე დიდი პრიორიტეტის მქონე ნაკადის.
+
 
 >> B4: Describe the sequence of events when a call to lock_acquire()
 >> causes a priority donation.  How is nested donation handled?
+
+ეს ხდება priority inversion პრობლემისას. როცა ავიღე ლოქი რომელიც სხვას უკავია
+ვიბლოკები და ვინახავ რომელ ლოქზე დავიბლოკე. ვანახლებ ამ ლოქზე მაქსიმალურ 
+დონაციას თუ საჭიროა. ვნახულობ ამ ლოქის მფლობელის პრიორიტეტი თუ ჩემზე ნაკლებია
+მაშინ ჩემს პრიორიტეტს ვურიცხავ და შემდეგ რეკურსიულად მივუყვებით, ვნახულობთ
+ეს ნაკადი ვისაც ვუცდით თვითონ თუ უცდის ვინმეს და იმის მაქსიმალურ დონაციას და 
+პრიორიტეტსაც ვანახლებთ და ჩავდივართ ბოლომდე.
 
 
 >> B5: Describe the sequence of events when lock_release() is called
 >> on a lock that a higher-priority thread is waiting for. 
 
+ამოვიღებთ აღებული ლოქების სიიდან ამ ლოქს, შემდეგ გადავყვებით აღებული ლოქების სიას,
+ვნახავთ მათ შორის მაქსიმალური დონაციის მნიშვნელობის მქონეს და ვისეტავთ ჩვენს 
+ეფექტურ პრიორიტეტად. თუ ცარიელია ეს სია მაშინ ვიბრუნებთ ჩვენს თავდაპირველ პრიორიტეტს.
 
 
 ---- SYNCHRONIZATION ----
@@ -99,11 +150,17 @@ Giorgi Kobuladze <gkobu14@freeuni.edu.ge>
 >> how your implementation avoids it.  Can you use a lock to avoid
 >> this race?
 
+რადგანაც interrupt handler ლოქსს ვერ აიღებს, ამის გამო ლოქების გამოყენება არაა გამოსავალი, 
+ამიტომ ვრთავთ ინტერაპტებს, რაც გვიგვარებს პოტენციურ რეის ქონდიშენს.
 
 ---- RATIONALE ----
 
 >> B7: Why did you choose this design?  In what ways is it superior to
 >> another design you considered?
+
+დიზაინი შევარჩიეთ მრავალი კრახის შემდეგ და როგორც კი ამუშავდა ბევრი აღარ გვიფიქრია, 
+თუმცა საბოლოოდ საკმაოდ კარგი გამოდგა. ვინახავთ აღებული ლოქების სიას და ლოქს რომელზეც ვიცდით,
+რათა რეკურსიული დონაციები შევძლოთ.
 
 
 			  ADVANCED SCHEDULER
@@ -115,6 +172,19 @@ Giorgi Kobuladze <gkobu14@freeuni.edu.ge>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+In thread.c
+fixed_point_t load_avg;	
+
+
+
+In thread.h
+struct thread
+{
+	...
+	int nice_value;
+	fixed_point_t recent_cpu
+	...
+}
 
 
 ---- ALGORITHMS ----
@@ -124,29 +194,33 @@ Giorgi Kobuladze <gkobu14@freeuni.edu.ge>
 >> scheduling decision and the priority and recent_cpu values for each
 >> thread after each given number of timer ticks:
 
-#define TIME_SLICE 4            /* # of timer ticks to give each thread. */
+timer ticks | R(A) | R(B) | R(C) | P(A) | P(B) | P(C) | thread to run
+------------|------|------|------|------|------|------|--------------
+ 0          |   1  |   1  |   2  |  63  |  60  |  58  |      A
+ 4          |   5  |   1  |   2  |  62  |  60  |  58  |      A
+ 8          |   9  |   1  |   2  |  61  |  60  |  58  |      A
+12          |  12  |   2  |   2  |  60  |  60  |  58  |      B
+16          |  13  |   5  |   2  |  60  |  59  |  58  |      A
+20          |  16  |   6  |   2  |  59  |  59  |  58  |      B
+24          |  17  |   9  |   2  |  59  |  58  |  58  |      A
+28          |  20  |   9  |   3  |  58  |  58  |  58  |      C  
+32          |  20  |  10  |   6  |  58  |  58  |  57  |      B
+36          |  21  |  13  |   6  |  58  |  57  |  57  |      A
 
-timer  recent_cpu    priority   thread
-ticks   A   B   C   A   B   C   to run
------  --  --  --  --  --  --   ------
- 0      1   1   2  63  60  58        A
- 4      5   1   2  62  60  58        A
- 8      9   1   2  61  60  58        A
-12     12   2   2  60  60  58        B
-16     13   5   2  60  59  58        A
-20     16   6   2  59  59  58        B
-24     17   9   2  59  58  58        A
-28     20   9   3  58  58  58        C
-32     20  10   6  58  58  57        B
-36     21  13   6  58  57  57        A
 
 >> C3: Did any ambiguities in the scheduler specification make values
 >> in the table uncertain?  If so, what rule did you use to resolve
 >> them?  Does this match the behavior of your scheduler?
 
+კითხვა ჩნდება თანაბარი პრიორიტეტის მქონე ნაკადების შემხვევაში. ამ დროს 
+round-robin პრინციპით ხდება ნაკადების არჩევა.
 
 >> C4: How is the way you divided the cost of scheduling between code
 >> inside and outside interrupt context likely to affect performance?
+საკმაოდ ანელებს მუშაობას, რადგან ხშირად ხდება load_avg, recent_cpu და
+priority-ს დათვლა და ამას გათიშული ინტერაპტებისას ვაკეთებთ, რომ სწორად
+დაითვალოს და ისე არ მოხდეს რომ რომელიმე ნაკადი გაეშვას შუა პრიორტების 
+დათვლისას და არასწორი მნიშვნელობები ჰქონდეს ზემოთ ნახსენებ ცვლადებს.
 
 
 ---- RATIONALE ----
@@ -156,6 +230,10 @@ ticks   A   B   C   A   B   C   to run
 >> time to work on this part of the project, how might you choose to
 >> refine or improve your design?
 
+ყველა პრიორიტეტისთვის ცალკე ლისტის გაკეთება კარგი არჩევანი გამოვიდა, რადგან 
+შემდეგი გასაშვებ ნაკადს სწრაფად ვპოულობთ, მაგრამ load_avg დათვლისას
+გასაშვები ნაკადების რაოდენობის დათვლა გვიწევს და ამის მოგვარება სხვანაირად უკეთესი იქნებოდა. 
+
 
 >> C6: The assignment explains arithmetic for fixed-point math in
 >> detail, but it leaves it open to you to implement it.  Why did you
@@ -163,3 +241,5 @@ ticks   A   B   C   A   B   C   to run
 >> abstraction layer for fixed-point math, that is, an abstract data
 >> type and/or a set of functions or macros to manipulate fixed-point
 >> numbers, why did you do so?  If not, why not?
+
+აქ გამზადებული ბიბლიოთეკა იყო და პირდაპირ გამოვიყენეთ fixed_point_t.
