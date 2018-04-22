@@ -80,7 +80,7 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 static struct thread * choose_thread_from_mlfq(void);
-void count_load_avg(void);
+
 
 
 
@@ -343,7 +343,6 @@ thread_unblock (struct thread *t)
 
   
     list_push_back (&mlfq[t->effect_priority - PRI_MIN], &t->elem);
- //   printf("thread tid is %s\n",thread_current()->name);
  
                         
   }else{
@@ -504,18 +503,6 @@ thread_get_priority (void)
   return thread_current()->effect_priority;
 }
 
-bool is_in_list(struct list_elem * elem, struct list* list){
-   struct list_elem *e;
-  for (e = list_begin (&all_list); e != list_end (&all_list);
-       e = list_next (e))
-    {
-        if(elem == e) return true;
-    }
-
-
-    return false;
-
-}
 
 
 void update_priorities(){
@@ -530,14 +517,8 @@ void update_priorities(){
        e = list_next (e))
     {
 
-      //priority = PRI_MAX 􀀀 (recent_cpu=4) 􀀀 (nice  2)
       struct thread *t = list_entry (e, struct thread, allelem);
-
-        bool removed = false;
-       //if(is_in_list(&t->elem,mlfq + t->priority)){
-        // removed = true;
-       //  list_remove(&t->elem);
-       // }
+  
       fixed_point_t elem1 = fix_div(t->recent_cpu,fix_int(4));
       fixed_point_t elem2 = fix_mul(fix_int(t->nice_value),fix_int(2));
       fixed_point_t elem3 = fix_add(elem1,elem2);
@@ -555,11 +536,8 @@ void update_priorities(){
          t->effect_priority =PRI_MIN;
       }
 
-      test_yield();
+      check_yield();
 
-     // if(removed){
-       //  list_push_back(&mlfq[t->priority] ,&t->elem);
-      //}
 
     }
 
@@ -576,8 +554,7 @@ thread_set_nice (int nice UNUSED)
   t->nice_value = nice;
  
 
-
-   fixed_point_t elem1 = fix_div(t->recent_cpu,fix_int(4));
+  fixed_point_t elem1 = fix_div(t->recent_cpu,fix_int(4));
   fixed_point_t elem2 = fix_mul(fix_int(t->nice_value),fix_int(2));
   fixed_point_t elem3 = fix_add(elem1,elem2);
 
@@ -594,21 +571,13 @@ thread_set_nice (int nice UNUSED)
   }
 
 
-   test_yield();
-
-
-
-
-
+   check_yield();
 
   
 }
 
 void update_recent_cpu(){
-
-  
-
-   struct list_elem *e;
+  struct list_elem *e;
 
   ASSERT (intr_get_level () == INTR_OFF);
 
@@ -638,9 +607,8 @@ thread_get_nice (void)
 }
 
 
-static int count_ready_threads();
 
-static int count_ready_threads() {
+static int count_ready_threads(void) {
   int res = 0;
   int i = PRI_MIN;
   for (; i <= PRI_MAX; i++) {
@@ -749,22 +717,22 @@ is_thread (struct thread *t)
 }
 
 
-void test_yield(void)
+void check_yield(void)
 {
-  struct thread *t;
   
-  if (list_empty(&ready_list))
-    return;
+  if (!list_empty(&ready_list)) {
   
-  if(!thread_mlfqs){
-    t = list_entry(list_front(&ready_list), struct thread, elem);
-  }else{
-     t = choose_thread_from_mlfq(); 
-   }
-    
+    struct thread *t;
+    if(!thread_mlfqs){
+      t = list_entry(list_front(&ready_list), struct thread, elem);
+    }else{
+       t = choose_thread_from_mlfq(); 
+     }
+      
 
-  if ((thread_current() -> effect_priority) < t -> effect_priority)
-    thread_yield();
+    if ((thread_current() -> effect_priority) < t -> effect_priority)
+      thread_yield();
+  }
 }
 
 

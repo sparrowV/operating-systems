@@ -134,10 +134,7 @@ sema_up (struct semaphore *sema)
   if (!list_empty (&sema->waiters)){
     
     struct thread * t = list_entry (list_pop_front (&sema->waiters),struct thread, elem);
-    thread_unblock (t);
-                              //  printf("unblcoked thread's name is %s\n",t->name);
-                              // printf("size is %d\n",list_size(&sema->waiters));
- //   printf("sdsds");                         
+    thread_unblock (t);                 
 
   }
 
@@ -225,7 +222,7 @@ lock_init (struct lock *lock)
   
 
 
-void nested_donation(struct thread * t){
+static void nested_donation(struct thread * t){
   if(t->wait_lock == NULL){
     return;
   }
@@ -252,8 +249,6 @@ lock_acquire (struct lock *lock)
       if(!thread_mlfqs){
           thread_current()->wait_lock = lock;
           if(thread_current()->effect_priority > (lock->max_don)){
-          
-              struct thread *cur = lock->holder;
 
               lock->max_don = thread_current()->effect_priority;
 
@@ -481,13 +476,15 @@ bool semaphore_cmp (const struct list_elem *first, const struct list_elem *secon
         return first_thread->effect_priority > second_thread->effect_priority ? true: false;
 
   }else{
-    if (list_empty(&second_semaphore_elem  -> semaphore.waiters))
-    return true;
 
-   if (list_empty(&first_semaphore_elem -> semaphore.waiters))
-    return false;
+    if (list_empty(&second_semaphore_elem  -> semaphore.waiters))
+      return true;
+
+    if (list_empty(&first_semaphore_elem -> semaphore.waiters))
+      return false;
 
   }
 
+  return false;
 }
 
