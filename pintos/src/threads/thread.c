@@ -215,7 +215,7 @@ void check_threads_sleeping_time(void){
 
       enum intr_level old_level;
       old_level = intr_disable();
-      current_thread->sleeping_time =  0;
+      current_thread->sleeping_time =0;
       list_remove(current);
 
     //printf("unblockER's  named %s\n",thread_current()->name);
@@ -525,7 +525,10 @@ void update_priorities(){
 
       //priority = PRI_MAX 􀀀 (recent_cpu=4) 􀀀 (nice  2)
       struct thread *t = list_entry (e, struct thread, allelem);
-      // list_remove(&t->elem);
+
+      // if(t->status == THREAD_READY){
+      //   list_remove(&t->elem);
+      // }
       fixed_point_t elem1 = fix_div(t->recent_cpu,fix_int(4));
       fixed_point_t elem2 = fix_mul(fix_int(t->nice_value),fix_int(2));
       fixed_point_t elem3 = fix_add(elem1,elem2);
@@ -540,7 +543,9 @@ void update_priorities(){
         t->priority = 0;
       }
 
-    //  list_push_back(&mlfq[t->priority] ,&t->elem);
+      // if(t->status == THREAD_READY){
+      //   list_push_back(&mlfq[t->priority] ,&t->elem);
+      // }
 
     }
 

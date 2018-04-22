@@ -76,9 +76,13 @@ sema_down (struct semaphore *sema)
   while (sema->value == 0)
     {
      list_insert_ordered(&sema->waiters,&thread_current ()->elem,thread_effect_priority_cmp,NULL);
+    // printf("thread waiting name is %s\n",thread_current()->name);
        
       thread_block ();
     }
+
+
+    //printf("threads name is n");
   sema->value--;
   intr_set_level (old_level);
 }
@@ -125,14 +129,17 @@ sema_up (struct semaphore *sema)
   list_sort(&sema->waiters,thread_effect_priority_cmp,NULL);
   if (!list_empty (&sema->waiters)){
     
-    thread_unblock (list_entry (list_pop_front (&sema->waiters),
-                                struct thread, elem));
+    struct thread * t = list_entry (list_pop_front (&sema->waiters),struct thread, elem);
+    thread_unblock (t);
+                              //  printf("unblcoked thread's name is %s\n",t->name);
+                              // printf("size is %d\n",list_size(&sema->waiters));
+ //   printf("sdsds");                         
 
   }
   sema->value++;
 
   if (!intr_context())
-    test_yield();
+     test_yield();
   intr_set_level (old_level);
 }
 
@@ -255,7 +262,9 @@ lock_acquire (struct lock *lock)
   
   intr_set_level(old_level);
 
+
   sema_down (&lock->semaphore);
+ // printf("thread aqcuied lock is %s\n",thread_current()->name);
   if(!thread_mlfqs){
     thread_current()->wait_lock = NULL;
 
