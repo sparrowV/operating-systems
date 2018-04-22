@@ -29,6 +29,13 @@ Giorgi Kobuladze <gkobu14@freeuni.edu.ge>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+დავამატეთ ცვლადი ,რომელშიც ვინახავთ რამდენ ხანს უნდა დაიძნოს ფრედმა.
+
+  int64_t sleeping_time , რომელიც არის thread.h-ში.
+
+ასევე დავამატეთ ლისტი სადაც ვინახავთ დაძინებულ ფრედებს:
+sleeping_threads_list , რომელიც არის thread.c ში გლობალურად  
+
 
 
 
@@ -36,11 +43,24 @@ Giorgi Kobuladze <gkobu14@freeuni.edu.ge>
 
 >> A2: Briefly describe what happens in a call to timer_sleep(),
 >> including the effects of the timer interrupt handler.
+timer_sleep() -ში გამოიძახება ფუნქცია ( put_thread_to_sleep(int64_t tick_number) ),რომელსაც გადაეცემა თუ რამდენი ხანი უნდა დაიძინოს ფრედმა.
+პირველ რიგში ვრთავთ ინტერაფთებს ,შემდეგ ფრედის (sleeping_time -ში) ვინახავთ დროს თუ როდის უნდა გაიღვიძოს ფრედმა( ახლანდელ დროს პლუს რამდენი
+ხანი იძინებს ფრედი).შემდეგ ფრედს ვამათებთ დასაძინებელთა სიაში , თუ აიდლი არაა.ბოლოს კი ვბლოკავთ ფრედს და ინტერაფთებს ვაბრუნებთ საწყის დონეზე.
+
+timer_interrupt()-ის დროს გამოძახება thread_tick-რომელიც თავისთავად გამოიძახებს ფუნქციას check_threads_sleeping_time(),რომელის მოვალეობაცაა
+შეამოწმოს რომელი ფრედი გააღვიძოს თუ არა.ამისათვის საჭიროა გადავუყვეთ sleeping_threads_list სიას და ვნახოთ თუ რომელიმე ფრედის გაღვიძების დროა.
+თუ არის გაღვიძების დროს , მაშინ მას ამოვიღებთ ზემოთ მოცემული სიიდან და გამოვიძახებთ thread_unblock().
+
+
+
 
 
 
 >> A3: What steps are taken to minimize the amount of time spent in
 >> the timer interrupt handler?
+
+დახარჯული დროის მინიმიზაციის მიზნით ,ფრედებს დავამატებთ დასაძინებელი დროის ზრდადობის მიხედვით.თუ რომელი ფრედის გაღვიძების დრო არ მოსულა,
+მაშინ შეგვიძლია გავჩერდეთ,რადგან სხვა ფრედების გაღვიძების დროს არ იქნება გაღვიძების დროის ზრდადობით დალაგების გამო.
 
 
 
@@ -48,16 +68,18 @@ Giorgi Kobuladze <gkobu14@freeuni.edu.ge>
 
 >> A4: How are race conditions avoided when multiple threads call
 >> timer_sleep() simultaneously?
-
+ლისტზე ოპერაციების დროს ინტერაფთებს ვრთავთ, რაც საშუალებას მოგვცემს თავიდან ავირიდოთ race condition-ი.
 
 >> A5: How are race conditions avoided when a timer interrupt occurs
 >> during a call to timer_sleep()?
-
+race condition-ის თავიდან აცილების მიზნით ვთიშავთ ინტერაფთებს.
 
 ---- RATIONALE ----
 
 >> A6: Why did you choose this design?  In what ways is it superior to
 >> another design you considered?
+საჭირო იყო თითოეული ფრედისთვის მიგვენიჭებინა ცვლადი,რომელშიც შევინახავდით დასაძინებელ დროს.ასევე საჭირო იყო შემოგვეღო
+სია ,რომელშიც შევინახავდით იმ ფრედებს ,რომლების დაძინებაც გვინდა.
 
 
 
