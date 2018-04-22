@@ -429,7 +429,7 @@ thread_yield (void)
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
-  if (cur != idle_thread)
+ // if (cur != idle_thread)
     if(thread_mlfqs){
       list_push_back(mlfq + cur->priority - PRI_MIN,&cur->elem);
 
@@ -463,6 +463,7 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority)
 {
+  if(thread_mlfqs) return;
    
   enum intr_level old_level = intr_disable();
 
@@ -508,11 +509,103 @@ thread_get_priority (void)
   return thread_current()->effect_priority;
 }
 
+
+
+void update_priorities(){
+
+     enum intr_level old_level = intr_disable ();
+
+   struct list_elem *e;
+
+  ASSERT (intr_get_level () == INTR_OFF);
+
+  for (e = list_begin (&all_list); e != list_end (&all_list);
+       e = list_next (e))
+    {
+
+      //priority = PRI_MAX 􀀀 (recent_cpu=4) 􀀀 (nice  2)
+      struct thread *t = list_entry (e, struct thread, allelem);
+      // list_remove(&t->elem);
+      fixed_point_t elem1 = fix_div(t->recent_cpu,fix_int(4));
+      fixed_point_t elem2 = fix_mul(fix_int(t->nice_value),fix_int(2));
+      fixed_point_t elem3 = fix_add(elem1,elem2);
+
+
+      t->priority = fix_trunc(fix_sub(fix_int(PRI_MAX),elem3));
+
+      if(t->priority > PRI_MAX){
+        t->priority = PRI_MAX;
+      }
+      if(t->priority < 0){
+        t->priority = 0;
+      }
+
+    //  list_push_back(&mlfq[t->priority] ,&t->elem);
+
+    }
+
+    intr_set_level(old_level);
+
+}
+
 /* Sets the current thread's nice value to NICE. */
 void
 thread_set_nice (int nice UNUSED)
 {
-  /* Not yet implemented. */
+
+  struct thread * t =   thread_current();
+  t->nice_value = nice;
+ 
+
+
+   fixed_point_t elem1 = fix_div(t->recent_cpu,fix_int(4));
+  fixed_point_t elem2 = fix_mul(fix_int(t->nice_value),fix_int(2));
+  fixed_point_t elem3 = fix_add(elem1,elem2);
+
+
+  t->priority = fix_trunc(fix_sub(fix_int(PRI_MAX),elem3));
+
+  if(t->priority > PRI_MAX){
+    t->priority = PRI_MAX;
+  }
+  if(t->priority < PRI_MIN){
+    t->priority = PRI_MIN;
+  }
+
+
+   test_yield();
+
+
+
+
+
+
+  
+}
+
+void update_recent_cpu(){
+
+  
+
+   struct list_elem *e;
+
+  ASSERT (intr_get_level () == INTR_OFF);
+
+  for (e = list_begin (&all_list); e != list_end (&all_list);
+       e = list_next (e))
+    {
+      struct thread *t = list_entry (e, struct thread, allelem);
+
+      fixed_point_t elem1 = fix_mul(fix_int(2),load_avg);
+      fixed_point_t elem2 = fix_add( fix_mul(fix_int(2),load_avg) ,fix_int(1));
+      fixed_point_t elem3 = fix_div(elem1,elem2);
+      fixed_point_t elem4 = fix_mul(elem3,t->recent_cpu);
+      fixed_point_t elem5 = fix_add(elem4,fix_int(t->nice_value));
+      t->recent_cpu = elem5;
+      
+    }
+
+
 }
 
 /* Returns the current thread's nice value. */
@@ -561,8 +654,9 @@ thread_get_load_avg (void)
 int
 thread_get_recent_cpu (void)
 {
-  /* Not yet implemented. */
-  return 0;
+
+  return fix_trunc(fix_mul(fix_int(100),thread_current()->recent_cpu));
+  //return 0;
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -643,7 +737,15 @@ void test_yield(void)
   if (list_empty(&ready_list))
     return;
   
-  t = list_entry(list_front(&ready_list), struct thread, elem);
+  if(!thread_mlfqs){
+    t = list_entry(list_front(&ready_list), struct thread, elem);
+  }else{
+
+    t = next_thread_to_run(); 
+  }
+
+
+
 
   if ((thread_current() -> priority) < t -> priority)
     thread_yield();
@@ -672,6 +774,14 @@ init_thread (struct thread *t, const char *name, int priority)
   t->effect_priority = priority; //added
   t->magic = THREAD_MAGIC;
 
+  if(t == initial_thread){
+    t->recent_cpu = fix_int(0);
+    t->nice_value = 0;
+  }else{
+    t->recent_cpu = thread_current()->recent_cpu;
+    t->nice_value = thread_current()->nice_value;
+  } 
+
   list_init(&t->acquired_locks);
 
   old_level = intr_disable ();
@@ -698,11 +808,11 @@ struct thread * choose_thread_from_mlfq(){
   for(; i>=PRI_MIN;i--){
     if(!list_empty(mlfq + i) ){
       struct thread * t= list_entry (list_front (mlfq + i), struct thread, elem);
-      if(t->status == THREAD_READY){
+     
    //   printf("thread chosen is %s\n", list_entry (list_front (mlfq + i), struct thread, elem)->name);
-      list_remove(&t->elem);
+     // list_remove(&t->elem);
       return t; 
-      }
+      
     }
   }
   return idle_thread;
@@ -720,7 +830,9 @@ static struct thread *
 next_thread_to_run (void)
 {
   if(thread_mlfqs){
-    return choose_thread_from_mlfq();
+    struct thread * t = choose_thread_from_mlfq();
+    list_remove(&t->elem);
+    return t;
   }else{
 
   if (list_empty (&ready_list))

@@ -96,6 +96,7 @@ struct thread
     struct list_elem allelem;           /* List element for all threads list. */
     int64_t sleeping_time; //added by me
     int nice_value;
+    fixed_point_t recent_cpu;
     
 
     /* list of aqcuired locks*/

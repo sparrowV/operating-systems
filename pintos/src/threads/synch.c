@@ -235,27 +235,33 @@ lock_acquire (struct lock *lock)
 
   enum intr_level old_level = intr_disable();
   if(lock->holder != NULL){
-    thread_current()->wait_lock = lock;
-    if(thread_current()->effect_priority > (lock->max_don)){
-    
-        struct thread *cur = lock->holder;
+      if(!thread_mlfqs){
+          thread_current()->wait_lock = lock;
+          if(thread_current()->effect_priority > (lock->max_don)){
+          
+              struct thread *cur = lock->holder;
 
-        lock->max_don = thread_current()->effect_priority;
+              lock->max_don = thread_current()->effect_priority;
 
-      if ((lock->holder)->effect_priority < thread_current()->effect_priority) {
-        (lock->holder)->effect_priority = thread_current()->effect_priority;
-        nested_donation(lock->holder);
+            if ((lock->holder)->effect_priority < thread_current()->effect_priority) {
+              (lock->holder)->effect_priority = thread_current()->effect_priority;
+              nested_donation(lock->holder);
+            }
+        }
+
       }
-  }
 }
   
   
   intr_set_level(old_level);
 
   sema_down (&lock->semaphore);
-  thread_current()->wait_lock = NULL;
-  list_push_back(&thread_current ()->acquired_locks,&lock->elem);
-  lock->max_don = thread_current()->effect_priority;
+  if(!thread_mlfqs){
+    thread_current()->wait_lock = NULL;
+
+    list_push_back(&thread_current ()->acquired_locks,&lock->elem);
+    lock->max_don = thread_current()->effect_priority;
+  }
   lock->holder = thread_current ();
 }
 
@@ -297,25 +303,28 @@ lock_release (struct lock *lock)
 
   struct thread *cur = thread_current();
 
-  struct list_elem *e;
+  if(!thread_mlfqs){
 
-  int max = 0;
-    for (e = list_begin (&cur->acquired_locks); e != list_end (&cur->acquired_locks);
-         e = list_next (e))
-                 
+        struct list_elem *e;
 
-      {
-        struct lock *f = list_entry (e, struct lock, elem);
-        if(f != lock &&  max < f->max_don){
-          max = f->max_don;
-        }
+        int max = 0;
+          for (e = list_begin (&cur->acquired_locks); e != list_end (&cur->acquired_locks);
+              e = list_next (e))
+                      
 
-      }
-      if(max == 0) 
-        cur->effect_priority = cur->priority;
-      else
-         cur->effect_priority = max;
-      list_remove(&lock->elem);
+            {
+              struct lock *f = list_entry (e, struct lock, elem);
+              if(f != lock &&  max < f->max_don){
+                max = f->max_don;
+              }
+
+            }
+            if(max == 0) 
+              cur->effect_priority = cur->priority;
+            else
+              cur->effect_priority = max;
+            list_remove(&lock->elem);
+  }   
  
   lock->holder = NULL;
  
