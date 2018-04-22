@@ -73,20 +73,16 @@ Giorgi Kobuladze <gkobu14@freeuni.edu.ge>
 In thread.h
 struct thread
 {
-	...
 	int effect_priority;		/* შექმნის მერე დასეტილი პრიორიტეტი */
 	struct list acquired_locks;	/* სია აღებული ლოქების შესანახად */
-    struct lock *wait_lock;		/* ლოქი რომელზეც ამჟამად ვიცდით */
-	...
+   	struct lock *wait_lock;		/* ლოქი რომელზეც ამჟამად ვიცდით */
 }
 
 In lock.h
 struct lock
 {
-	...
 	struct list_elem elem;		/* აღებული ლოქების სიაში ჩასამატებლად */
-    int max_don;				/* მაქსიმალური გადმოცემული პრიორიტეტი */
-	...	
+    	int max_don;				/* მაქსიმალური გადმოცემული პრიორიტეტი */	
 }
 
 
@@ -180,10 +176,8 @@ fixed_point_t load_avg;
 In thread.h
 struct thread
 {
-	...
 	int nice_value;
 	fixed_point_t recent_cpu
-	...
 }
 
 
