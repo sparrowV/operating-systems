@@ -19,9 +19,13 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
+
+
+#define DEFAULT_SIZE 512
+
 static struct semaphore temporary;
 static thread_func start_process NO_RETURN;
-static bool load (const char *cmdline, void (**eip) (void), void **esp);
+static bool load ( char *cmdline, void (**eip) (void), void **esp);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -41,10 +45,26 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+
+
+// //char * exec_name = palloc_get_page(0);
+// strlcpy(exec_name,file_name,PGSIZE);
+char * save_ptr,*token;
+
+token = strtok_r(file_name," ",&save_ptr);   
+
+
+  
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
-  if (tid == TID_ERROR)
+  
+  tid = thread_create (token, PRI_DEFAULT, start_process, fn_copy); //changed file_name with exec_name
+  if (tid == TID_ERROR){
     palloc_free_page (fn_copy);
+ 
+
+  }
+     
   return tid;
 }
 
@@ -54,6 +74,7 @@ static void
 start_process (void *file_name_)
 {
   char *file_name = file_name_;
+
   struct intr_frame if_;
   bool success;
 
@@ -200,7 +221,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp);
+static bool setup_stack (void **esp,const char * file_name);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -211,7 +232,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
 bool
-load (const char *file_name, void (**eip) (void), void **esp)
+load (char *file_name, void (**eip) (void), void **esp)
 {
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
@@ -226,8 +247,19 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
-  /* Open executable file. */
-  file = filesys_open (file_name);
+
+//char * exec_name = palloc_get_page(0);
+ //strlcpy (exec_name, file_name, PGSIZE);
+
+
+
+// char * exec_name = palloc_get_page(0);
+// strlcpy(exec_name,file_name,PGSIZE);
+char * save_ptr,*token;
+
+token = strtok_r(file_name," ",&save_ptr);   
+  file = filesys_open (token);
+  //palloc_free_page(exec_name);
   if (file == NULL)
     {
       printf ("load: %s: open failed\n", file_name);
@@ -306,8 +338,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
         }
     }
 
+
+
   /* Set up stack. */
-  if (!setup_stack (esp))
+  if (!setup_stack (esp,file_name))
     goto done;
 
   /* Start address. */
@@ -429,11 +463,15 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   return true;
 }
 
+
+
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp)
+setup_stack (void **esp,const char * file_name)
 {
+
+
   uint8_t *kpage;
   bool success = false;
 
@@ -441,11 +479,128 @@ setup_stack (void **esp)
   if (kpage != NULL)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-      if (success)
+      if (success){
         *esp = PHYS_BASE;
+              
+        //printf("filename is : %s \n\n\n\n",file_name);
+
+          //strrev(file_name); //reverse string in place. Keep in mind that string does not change the place!!!
+          // char * revered_string = ReverseConstString(file_name);
+          char reversed_string[256];
+          memset(reversed_string,0,DEFAULT_SIZE);
+          //char * reversed_string = palloc_get_page( PAL_ZERO);
+
+          int begin, end, count = 0;
+          count = strlen(file_name);
+        
+          end = count - 1;
+        
+          for (begin = 0; begin < count; begin++) {
+              reversed_string[begin] = file_name[end];
+              end--;
+          }
+        
+          reversed_string[begin] = '\0';
+
+
+          
+      
+          void* positions[128];
+          //int * positions = palloc_get_page(0);
+     
+          int counter = 0;
+           char *token, *save_ptr;
+           int sum = 0;
+              for (token = strtok_r (reversed_string, " ", &save_ptr); token != NULL;
+                      token = strtok_r (NULL, " ", &save_ptr))
+            {
+                char arg[128]; 
+              //  printf("token is %s\n\n",token);
+              // printf("esp is %p\n",*esp);
+                memset(arg,0,128);
+               // printf("%d\n",strlen(token));
+                   
+                memcpy(arg,token,strlen(token));
+                // printf("%d\n",strlen(arg));
+            //    printf("arg is : %s\n",arg);
+           // int len = strlen(token);
+                *esp-=strlen(arg)+1;
+            //   printf("%s\n",arg);
+                memcpy(*esp,arg,strlen(arg)+1);
+         
+              //save the pointer
+              positions[counter] = *esp;
+                //printf("%p\n\n",positions[counter]);
+               
+              sum+=strlen(arg)+1;
+      
+            
+                
+                counter++;
+    
+
+
+
+            }
+             
+            
+              int nulls = 4 - sum % 4; 
+ 
+            char null_bytes[nulls];
+            memset(null_bytes,0,nulls);
+
+
+
+                 
+            
+                      
+         
+
+          *esp -=nulls;
+            memcpy(*esp,null_bytes,nulls);//add null after arguments are added
+
+
+            int i=0;
+       
+
+            for(;i<counter;i++){
+              *esp-=sizeof(void*);
+                  //   printf("%p\n\n",positions[i]);
+               memcpy(*esp,positions + i,sizeof(void*)); //copy reference to our arguments
+              
+            }
+           
+            
+
+          // *esp-=sizeof(char**); //copy argv[0]
+          // memcpy(*esp,&argv,sizeof(char**));
+       void * sv = *esp;
+          *esp-=4;
+          memcpy(*esp,&sv,4);
+
+            *esp-=sizeof(int);
+            memcpy(*esp,&counter,sizeof(int));
+
+  
+            char n[4];
+            memset(n,0,4);
+              *esp-=sizeof(n);
+            memcpy(*esp,&n,4);//add null after arguments are added
+      hex_dump((uintptr_t)*esp, *esp, PHYS_BASE - *esp, true);
+      
+      
+      }
       else
         palloc_free_page (kpage);
     }
+
+     	
+
+
+
+
+
+  
   return success;
 }
 
