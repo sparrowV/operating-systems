@@ -253,11 +253,11 @@ load (char *file_name, void (**eip) (void), void **esp)
 
 
 
-// char * exec_name = palloc_get_page(0);
-// strlcpy(exec_name,file_name,PGSIZE);
+ char * exec_name = palloc_get_page(0);
+ strlcpy(exec_name,file_name,PGSIZE);
 char * save_ptr,*token;
 
-token = strtok_r(file_name," ",&save_ptr);   
+token = strtok_r(exec_name," ",&save_ptr);   
   file = filesys_open (token);
   //palloc_free_page(exec_name);
   if (file == NULL)
@@ -511,16 +511,35 @@ setup_stack (void **esp,const char * file_name)
           int counter = 0;
            char *token, *save_ptr;
            int sum = 0;
+          // printf("reversed string is %s\n",reversed_string);
               for (token = strtok_r (reversed_string, " ", &save_ptr); token != NULL;
                       token = strtok_r (NULL, " ", &save_ptr))
             {
                 char arg[128]; 
               //  printf("token is %s\n\n",token);
+
+
+               char reversed_word[128];
+                memset(reversed_word,0,128);
+                //char * reversed_string = palloc_get_page( PAL_ZERO);
+
+                int begin_w, end_w, count_w = 0;
+                count_w = strlen(token);
+              
+                end_w = count_w - 1;
+              
+                for (begin_w = 0; begin_w < count_w; begin_w++) {
+                    reversed_word[begin_w] = token[end_w];
+                    end_w--;
+                }
+
+              reversed_word[begin_w] = '\0';
+
               // printf("esp is %p\n",*esp);
                 memset(arg,0,128);
                // printf("%d\n",strlen(token));
                    
-                memcpy(arg,token,strlen(token));
+                memcpy(arg,reversed_word,strlen(token));
                 // printf("%d\n",strlen(arg));
             //    printf("arg is : %s\n",arg);
            // int len = strlen(token);
