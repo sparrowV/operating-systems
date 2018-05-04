@@ -569,15 +569,19 @@ setup_stack (void **esp,const char * file_name)
             memset(null_bytes,0,nulls);
 
 
-
+       
                  
             
                       
-         
-
+      
           *esp -=nulls;
             memcpy(*esp,null_bytes,nulls);//add null after arguments are added
 
+
+               char n[4];
+            memset(n,0,4);
+              *esp-=sizeof(4);
+            memcpy(*esp,n,4);//add null after arguments are added
 
             int i=0;
        
@@ -593,19 +597,19 @@ setup_stack (void **esp,const char * file_name)
 
           // *esp-=sizeof(char**); //copy argv[0]
           // memcpy(*esp,&argv,sizeof(char**));
-       void * sv = *esp;
+          void * sv = *esp;
           *esp-=4;
           memcpy(*esp,&sv,4);
 
             *esp-=sizeof(int);
             memcpy(*esp,&counter,sizeof(int));
 
+
+          //fake return address
+            *esp-=sizeof(4);
+            memcpy(*esp,n,4);//add null after arguments are added
   
-            char n[4];
-            memset(n,0,4);
-              *esp-=sizeof(n);
-            memcpy(*esp,&n,4);//add null after arguments are added
-      hex_dump((uintptr_t)*esp, *esp, PHYS_BASE - *esp, true);
+   //   hex_dump((uintptr_t)*esp, *esp, PHYS_BASE - *esp, true);
       
       
       }

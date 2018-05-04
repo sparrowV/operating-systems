@@ -3,8 +3,10 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/vaddr.h"
 
 static void syscall_handler (struct intr_frame *);
+int write(int fd,void * buffer, size_t size);
 
 void
 syscall_init (void)
@@ -16,10 +18,40 @@ static void
 syscall_handler (struct intr_frame *f UNUSED)
 {
   uint32_t* args = ((uint32_t*) f->esp);
-  printf("System call number: %d\n", args[0]);
-  if (args[0] == SYS_EXIT) {
-    f->eax = args[1];
-    printf("%s: exit(%d)\n", &thread_current ()->name, args[1]);
+
+  if (args[0] > PHYS_BASE){
     thread_exit();
   }
+
+  //printf("System call number: %d\n", args[0]);
+
+  switch(args[0]){
+       case SYS_EXIT :{
+       f->eax = args[1];
+       printf("%s: exit(%d)\n", &thread_current ()->name, args[1]);
+       thread_exit();
+  }
+
+  case SYS_WRITE :{
+      int fd = args[1];
+      void *buffer = args[2];
+      size_t size = args[3];
+      f->eax = write(fd,buffer,size);
+     
+
+  }
+
+
+  }
+ 
+}
+
+
+int write(int fd,void * buffer, size_t size){
+  if(fd == 1){
+     putbuf(buffer,size);
+    return size;
+  }
+ // return file_write(fd,buffer,size);
+
 }
