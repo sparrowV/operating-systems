@@ -6,13 +6,17 @@
 #include "threads/vaddr.h"
 #include "pagedir.h"
 
+
+
+
 static void syscall_handler (struct intr_frame *);
 static int write(int fd,void * buffer, size_t size);
 //static void exit(int status);
 
+//
 static bool is_valid_addr(const uint8_t *uaddr) {
-  if (is_user_vaddr(uaddr)) {
-    return (pagedir_get_page(thread_current()->pagedir, uaddr) == NULL);
+  if (is_user_vaddr(uaddr) && is_user_base_correct(uaddr)) {
+    return (pagedir_get_page(thread_current()->pagedir, uaddr) != NULL);
   }
   return false;
 }
@@ -34,18 +38,25 @@ static void
 syscall_handler (struct intr_frame *f UNUSED)
 {
   uint32_t* args = ((uint32_t*) f->esp);
-
-
-  if (args[0] > PHYS_BASE){
+  //if(!(is_user_vaddr(args)&& is_user_base_correct(args))) {
+   if (!is_valid_addr(args)) {
+    printf("%s: exit(%d)\n", &thread_current ()->name, -1);
     thread_exit();
   }
+  int num_syscall = args[0];
 
+  // if (args[0] > PHYS_BASE){
+  //   thread_exit();
+  // }
+  // 
+  
+ 
 
   //printf("System call number: %d\n", args[0]);
 
-  switch(args[0]){
+  switch(num_syscall){
        case SYS_EXIT :{
-       f->eax = args[1];
+       //f->eax = args[1];
        printf("%s: exit(%d)\n", &thread_current ()->name, args[1]);
        thread_exit();
   }
