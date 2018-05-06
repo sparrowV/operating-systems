@@ -25,6 +25,14 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+#define MAX_OPEN_FILES 64
+
+struct file_desc
+{
+  bool is_open;
+  //char file_name[16];
+  struct file *open_file;
+};
 
 /* A kernel thread or user process.
 
@@ -94,6 +102,8 @@ struct thread
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+
+    struct file_desc file_descs[MAX_OPEN_FILES];
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */

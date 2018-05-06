@@ -206,6 +206,9 @@ thread_create (const char *name, int priority,
   sf = alloc_frame (t, sizeof *sf);
   sf->eip = switch_entry;
   sf->ebp = 0;
+  memset(&t->file_descs, 0, MAX_OPEN_FILES*sizeof(struct file_desc));
+  t->file_descs[0].is_open = true;
+  t->file_descs[1].is_open = true;
 
   /* Add to run queue. */
   thread_unblock (t);
