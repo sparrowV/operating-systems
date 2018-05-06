@@ -12,6 +12,7 @@
 
 
 static bool is_valid_addr(const uint32_t *uaddr);
+static void validate_uaddr(const uint32_t *uaddr);
 static void syscall_handler (struct intr_frame *);
 static int write(int fd,void * buffer, size_t size);
 static bool create (const char* file, unsigned initial_size);
@@ -54,11 +55,9 @@ syscall_handler (struct intr_frame *f UNUSED)
 
     case SYS_EXIT: {
 
-      if (!is_valid_addr((void*)(args + 1))) {
-        exit(-1);
-      } else {
-        exit(args[1]);
-      }
+      validate_uaddr((void*)(args + 1));
+      
+      exit(args[1]);
       break;
     }
 
@@ -150,9 +149,8 @@ static void exit(int code) {
 
 static bool create (const char* file, unsigned initial_size) {
 
-  if (!is_valid_addr((uint32_t*)file)) {
-    exit(-1);
-  }
+  validate_uaddr((uint32_t*)file);
+  
   lock_acquire(get_file_system_lock());
 //using synchronization constructs:
 
@@ -167,4 +165,9 @@ static bool is_valid_addr(const uint32_t *uaddr) {
     return (pagedir_get_page(thread_current()->pagedir, uaddr) != NULL);
   }
   return false;
+}
+
+static void validate_uaddr(const uint32_t *uaddr) {
+  if (!is_valid_addr(uaddr))
+    exit(-1);
 }
