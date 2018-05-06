@@ -174,11 +174,25 @@ syscall_handler (struct intr_frame *f UNUSED)
   
 
     case SYS_SEEK: {
+      validate_uaddr(args+1);
+      validate_uaddr(args+2);
+      int fd = args[1];
+      int new_pos = args[2];
+      lock_acquire(get_file_system_lock());
+      struct file *cur_file = thread_current()->file_descs[fd].open_file;
+      file_seek(cur_file,new_pos);
+     lock_release(get_file_system_lock());
+
 
       break;
     }
 
     case SYS_TELL: {
+      validate_uaddr(args+1);
+      lock_acquire(get_file_system_lock());
+      int fd = args[1];
+      struct file *cur_file = thread_current()->file_descs[fd].open_file;
+      f->eax =(cur_file->pos + 1);
 
       break;
     }
@@ -213,6 +227,7 @@ static int read(int fd,uint8_t  * buffer, size_t size) {
     return size;
   } else {
     struct file *cur_file = thread_current()->file_descs[fd].open_file;
+    if(buffer == NULL || cur_file == NULL) return -1;
  
       int s =  file_read(cur_file,buffer,size);
       //printf("size read is %d\n\n\n\n\n",s);
@@ -233,6 +248,7 @@ static int write(int fd,void * buffer, size_t size) {
     return size;
   } else {
     struct file *cur_file = thread_current()->file_descs[fd].open_file;
+       if(buffer == NULL || cur_file == NULL) return -1;
     if (!cur_file->deny_write) {
       return file_write(cur_file,buffer,size);
     }
