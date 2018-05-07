@@ -4,6 +4,7 @@
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "userprog/syscall.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -121,7 +122,7 @@ kill (struct intr_frame *f)
    [IA32-v3a] section 5.15 "Exception and Interrupt Reference". */
 static void
 page_fault (struct intr_frame *f)
-{
+{ 
   bool not_present;  /* True: not-present page, false: writing r/o page. */
   bool write;        /* True: access was write, false: access was read. */
   bool user;         /* True: access by user, false: access by kernel. */
@@ -147,6 +148,21 @@ page_fault (struct intr_frame *f)
   not_present = (f->error_code & PF_P) == 0;
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
+
+  // address hasn't been mapped yet so it's nvalid
+  if (not_present) {
+    if (user) {
+      exit(-1);
+    }
+  }
+
+  // user is trying to access kernel memory
+  if (user) {
+    if (!is_valid_uaddr(fault_addr)) {
+      exit(-1);
+    }
+  }
+
 
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
