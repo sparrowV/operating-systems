@@ -24,6 +24,7 @@
 #include <random.h>
 #include "tests/lib.h"
 
+
 static const int EXPECTED_DEPTH_TO_PASS = 30;
 static const int EXPECTED_REPETITIONS = 10;
 
@@ -33,6 +34,7 @@ enum child_termination_mode { RECURSE, CRASH };
 
 /* Spawn a recursive copy of ourselves, passing along instructions
    for the child. */
+
 static pid_t
 spawn_child (int c, enum child_termination_mode mode)
 {
@@ -176,4 +178,6 @@ main (int argc, char *argv[])
 
   return expected_depth;
 }
+
+
 // vim: sw=2

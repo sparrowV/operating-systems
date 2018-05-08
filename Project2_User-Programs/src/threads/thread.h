@@ -25,8 +25,8 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
-#define MAX_OPEN_FILES 64
-#define MAX_CHILDREN 16
+#define MAX_OPEN_FILES 128
+#define MAX_CHILDREN 64
 #define CREATED -2
 
 struct file_desc
@@ -103,7 +103,7 @@ struct thread
     /* Owned by thread.c. */
     tid_t tid;                          /* Thread identifier. */
     enum thread_status status;          /* Thread state. */
-    char name[32];                      /* Name (for debugging purposes). */
+    char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
