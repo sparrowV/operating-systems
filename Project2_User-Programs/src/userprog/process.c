@@ -348,6 +348,7 @@ token = strtok_r(exec_name," ",&save_ptr);
   *eip = (void (*) (void)) ehdr.e_entry;
 
   success = true;
+   file_deny_write(file);
 
  done:
   /* We arrive here whether the load is successful or not. */

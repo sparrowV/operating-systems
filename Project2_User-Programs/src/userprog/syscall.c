@@ -60,11 +60,36 @@ syscall_handler (struct intr_frame *f UNUSED)
     }
 
     case SYS_EXEC: {
+      validate_uaddr(args+1);
+      validate_uaddr(args[1]);
+      char *cmd_line = (char*)args[1];
+      char arr[strlen(cmd_line)];
+      memset(arr,0,strlen(cmd_line));
 
+    int i=0;
+    while(cmd_line[i] != " " && i<strlen(cmd_line)){
+      arr[i] = cmd_line[i];
+        i++;
+    }
+
+   lock_acquire(get_file_system_lock());
+    struct file* cmd_file = filesys_open (arr);
+    if(cmd_file == NULL){
+      f->eax = -1;
+   
+
+    }else{
+      file_close(cmd_file);
+	 
+      f->eax = process_execute(cmd_line);
+    }
+ 	lock_release(get_file_system_lock());
       break;
     }
 
     case SYS_WAIT: {
+      check_addr(p+1);
+		f->eax = process_wait(*(p+1));
 
       break;
     }
