@@ -37,7 +37,7 @@ process_execute (const char *file_name)
   char *fn_copy;
   tid_t tid;
 
-  sema_init (&temporary, 0);
+  //sema_init (&temporary, 0);
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
@@ -112,7 +112,9 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED)
 {
-  sema_down (&temporary);
+  //sema_down (&temporary);
+  
+  
   return 0;
 }
 
@@ -139,7 +141,7 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-  sema_up (&temporary);
+  //sema_up (&temporary);
 }
 
 /* Sets up the CPU for running user code in the current
@@ -348,7 +350,6 @@ token = strtok_r(exec_name," ",&save_ptr);
   *eip = (void (*) (void)) ehdr.e_entry;
 
   success = true;
-   file_deny_write(file);
 
  done:
   /* We arrive here whether the load is successful or not. */

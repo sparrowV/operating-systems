@@ -26,12 +26,20 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 #define MAX_OPEN_FILES 64
+#define MAX_CHILDREN 16
+#define CREATED -2
 
 struct file_desc
 {
   bool is_open;
   //char file_name[16];
   struct file *open_file;
+};
+
+struct child_thread_inf
+{
+  tid_t id;
+  int exit_status;
 };
 
 /* A kernel thread or user process.
@@ -104,6 +112,13 @@ struct thread
     struct list_elem elem;              /* List element. */
 
     struct file_desc file_descs[MAX_OPEN_FILES];
+
+    struct thread *parent;
+    int waiting_on_thread;
+    struct child_thread_inf child_arr[MAX_CHILDREN];
+    int child_count;
+    struct semaphore wait_for_child;
+
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */

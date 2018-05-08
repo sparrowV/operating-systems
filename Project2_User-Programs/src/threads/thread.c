@@ -40,8 +40,6 @@ static struct lock tid_lock;
 //file system lock
 static struct lock file_system_lock;
 
-
-
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame
   {
@@ -104,6 +102,7 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+  initial_thread->parent = NULL;
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -194,6 +193,13 @@ thread_create (const char *name, int priority,
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
+  struct thread *cur = thread_current();
+  cur->child_arr[cur->child_count].id = tid;
+  cur->child_arr[cur->child_count].exit_status = CREATED;
+  cur->child_count++;
+
+  t->parent = cur;
+
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
   kf->eip = NULL;
@@ -208,6 +214,9 @@ thread_create (const char *name, int priority,
   sf = alloc_frame (t, sizeof *sf);
   sf->eip = switch_entry;
   sf->ebp = 0;
+  memset(&t->file_descs, 0, MAX_OPEN_FILES*sizeof(struct file_desc));
+  t->file_descs[0].is_open = true;
+  t->file_descs[1].is_open = true;
 
   /* Add to run queue. */
   thread_unblock (t);
@@ -477,6 +486,8 @@ init_thread (struct thread *t, const char *name, int priority)
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
+  sema_init(&t->wait_for_child, 0);
+  t->child_count = 0;
   intr_set_level (old_level);
 }
 

@@ -83,14 +83,15 @@ syscall_handler (struct intr_frame *f UNUSED)
 	 
       f->eax = process_execute(cmd_line);
     }
- 	lock_release(get_file_system_lock());
+ 	  lock_release(get_file_system_lock());
       break;
     }
 
     case SYS_WAIT: {
-      check_addr(p+1);
-		f->eax = process_wait(*(p+1));
+      validate_uaddr(args+1);
 
+      tid_t id = args[1];
+      f->eax = process_wait(id);
       break;
     }
 
@@ -287,6 +288,19 @@ static int write(int fd,void * buffer, size_t size) {
 
 
 void exit(int code) {
+  int i = 0;
+  struct thread *parent = thread_current()->parent;
+  if (parent != NULL) {
+    for (; i < MAX_CHILDREN; ++i) {
+      if (parent->child_arr[i].id == thread_current()->tid) {
+        parent->child_arr[i].exit_status = code;
+        break;
+      }
+    }
+  }
+  if (parent->waiting_on_thread == thread_current()->tid) {
+    sema_up(&parent->wait_for_child);
+  } 
   printf("%s: exit(%d)\n", thread_current()->name, code);
   thread_exit();
 }
