@@ -103,7 +103,7 @@ struct thread
     /* Owned by thread.c. */
     tid_t tid;                          /* Thread identifier. */
     enum thread_status status;          /* Thread state. */
-    char name[16];                      /* Name (for debugging purposes). */
+    char name[32];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
@@ -118,6 +118,7 @@ struct thread
     struct child_thread_inf child_arr[MAX_CHILDREN];
     int child_count;
     struct semaphore wait_for_child;
+    int st;
 
 
 #ifdef USERPROG

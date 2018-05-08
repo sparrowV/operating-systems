@@ -37,7 +37,7 @@ process_execute (const char *file_name)
   char *fn_copy;
   tid_t tid;
 
-  //sema_init (&temporary, 0);
+  sema_init (&temporary, 0);
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
@@ -87,8 +87,12 @@ start_process (void *file_name_)
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success)
-    thread_exit ();
+  if (!success){
+    sema_up(&thread_current()->parent->wait_for_child);
+       thread_exit ();
+  }
+
+
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -112,10 +116,35 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED)
 {
+  
+
+  struct thread * cur = thread_current();
+ // printf("waiting thread is %s waitee is %d\n",cur->name,child_tid);
+  
+  int i = 0;
+    for (; i < MAX_CHILDREN; ++i) {
+
+      if (cur->child_arr[i].id == child_tid) {
+       // printf("waiting on child %d\n\n",cur->child_arr[i].id);
+        cur->waiting_on_thread = child_tid;
+          if(cur->child_arr[i].exit_status == 700){
+         //  printf("parent thread is %s\n\n",cur->parent->name);
+          // printf("waiting on child %d\n\n",cur->child_arr[i].id);
+
+            sema_down(&cur->wait_for_child);
+             //  printf("parent thread is Done , now exiting %s\n\n",cur->parent->name);
+
+         return cur->child_arr[i].exit_status;
+          }
+
+
+      }
+    
+  }
   //sema_down (&temporary);
-  
-  
-  return 0;
+ 
+
+  return -1;
 }
 
 /* Free the current process's resources. */
@@ -123,8 +152,10 @@ void
 process_exit (void)
 {
   struct thread *cur = thread_current ();
+  //printf("exiting thread is %s\n",cur->name);
   uint32_t *pd;
-
+  if(cur->st==700)
+      exit(-1);
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -141,7 +172,7 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-  //sema_up (&temporary);
+  sema_up (&temporary);
 }
 
 /* Sets up the CPU for running user code in the current
@@ -350,6 +381,7 @@ token = strtok_r(exec_name," ",&save_ptr);
   *eip = (void (*) (void)) ehdr.e_entry;
 
   success = true;
+   file_deny_write(file);
 
  done:
   /* We arrive here whether the load is successful or not. */

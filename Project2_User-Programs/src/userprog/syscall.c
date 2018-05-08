@@ -63,24 +63,26 @@ syscall_handler (struct intr_frame *f UNUSED)
       validate_uaddr(args+1);
       validate_uaddr(args[1]);
       char *cmd_line = (char*)args[1];
-      char arr[strlen(cmd_line)];
-      memset(arr,0,strlen(cmd_line));
+      char arr[strlen(cmd_line)+4];
+      memset(arr,0,strlen(cmd_line)+4);
+    //  printf("length is %d",strlen(cmd_line));
 
     int i=0;
-    while(cmd_line[i] != " " && i<strlen(cmd_line)){
+    while(cmd_line[i] != ' ' && i<strlen(cmd_line)){
       arr[i] = cmd_line[i];
         i++;
+     //   printf("I is %d",i);
     }
-
+   // printf("arr is %s\n\n",arr);
    lock_acquire(get_file_system_lock());
     struct file* cmd_file = filesys_open (arr);
     if(cmd_file == NULL){
       f->eax = -1;
-   
+  //  printf("here\n\n\n");
 
     }else{
       file_close(cmd_file);
-	 
+      //printf("prcess execute\n\n\\n");
       f->eax = process_execute(cmd_line);
     }
  	  lock_release(get_file_system_lock());
@@ -290,9 +292,12 @@ static int write(int fd,void * buffer, size_t size) {
 void exit(int code) {
   int i = 0;
   struct thread *parent = thread_current()->parent;
+  thread_current()->st = 600;
+  //printf(":exiting thread %s\n\n",thread_current()->name);
   if (parent != NULL) {
     for (; i < MAX_CHILDREN; ++i) {
       if (parent->child_arr[i].id == thread_current()->tid) {
+        //printf("exiting thread %s parent is %s",thread_current()->name,parent->name);
         parent->child_arr[i].exit_status = code;
         break;
       }

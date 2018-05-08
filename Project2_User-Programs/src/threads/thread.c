@@ -103,6 +103,7 @@ thread_init (void)
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
   initial_thread->parent = NULL;
+ // thread_current()->waiting_on_thread = 0;
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -195,8 +196,10 @@ thread_create (const char *name, int priority,
 
   struct thread *cur = thread_current();
   cur->child_arr[cur->child_count].id = tid;
-  cur->child_arr[cur->child_count].exit_status = CREATED;
+  cur->child_arr[cur->child_count].exit_status = 700;
   cur->child_count++;
+  cur->waiting_on_thread = 0;
+  t->st = 700;
 
   t->parent = cur;
 
