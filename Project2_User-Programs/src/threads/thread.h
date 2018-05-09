@@ -25,14 +25,13 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
-#define MAX_OPEN_FILES 128
+#define MAX_OPEN_FILES 130
 #define MAX_CHILDREN 64
 #define CREATED -2
 
 struct file_desc
 {
   bool is_open;
-  //char file_name[16];
   struct file *open_file;
 };
 
@@ -113,6 +112,11 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
+
+#ifdef USERPROG
+    /* Owned by userprog/process.c. */
+    uint32_t *pagedir;                  /* Page directory. */
+
     struct file_desc file_descs[MAX_OPEN_FILES];
 
     struct thread *parent;
@@ -121,12 +125,9 @@ struct thread
     int child_count;
     struct semaphore wait_for_child;
     int st;
-	struct file *threads_exec_file;
-	bool load_successfully;
+    struct file *threads_exec_file;
+    bool load_successfully;
 
-#ifdef USERPROG
-    /* Owned by userprog/process.c. */
-    uint32_t *pagedir;                  /* Page directory. */
 #endif
 
     /* Owned by thread.c. */
@@ -169,5 +170,4 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 struct lock* get_file_system_lock(void);
-
 #endif /* threads/thread.h */

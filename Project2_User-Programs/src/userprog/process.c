@@ -34,7 +34,7 @@ static bool load ( char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name)
 {
-	char *f_name;
+  char *f_name;
   char *fn_copy;
   tid_t tid;
 
@@ -52,6 +52,15 @@ process_execute (const char *file_name)
   //printf("%d\n", thread_current()->tid);
   tid = thread_create (f_name, PRI_DEFAULT, start_process, fn_copy);
   free(f_name);
+
+
+// //char * exec_name = palloc_get_page(0);
+// strlcpy(exec_name,file_name,PGSIZE);
+//char * save_ptr,*token;
+
+//token = strtok_r(file_name," ",&save_ptr);   
+
+
   
 
   /* Create a new thread to execute FILE_NAME. */
@@ -64,7 +73,7 @@ process_execute (const char *file_name)
   }
    sema_down(&thread_current()->wait_for_child);
    if(thread_current()->load_successfully == false) {
-	   return -1;
+     return -1;
    }
   return tid;
 }
@@ -89,13 +98,13 @@ start_process (void *file_name_)
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success){
-	thread_current()->parent->load_successfully = false;
+  thread_current()->parent->load_successfully = false;
     sema_up(&thread_current()->parent->wait_for_child);
     thread_exit ();
   }
   else {
-	thread_current()->parent->load_successfully = true;
-	sema_up(&thread_current()->parent->wait_for_child);
+  thread_current()->parent->load_successfully = true;
+  sema_up(&thread_current()->parent->wait_for_child);
   }
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -128,25 +137,25 @@ process_wait (tid_t child_tid UNUSED)
     for (; i < MAX_CHILDREN; ++i) {
 
       if (cur->child_arr[i].id == child_tid) {
-		  ischild = true;
-		  break;
+      ischild = true;
+      break;
      }
-	}
-	if(!ischild || cur->child_arr[i].already_waited) {
-		return -1;
-	}
+  }
+  if(!ischild || cur->child_arr[i].already_waited) {
+    return -1;
+  }
 
-	  if(ischild && cur->child_arr[i].already_exited == false){
-		  cur->waiting_on_thread = child_tid;
-		  sema_down(&thread_current()->wait_for_child);
-		  cur->child_arr[i].already_waited = true;
-		  return cur->child_arr[i].exit_status;
+    if(ischild && cur->child_arr[i].already_exited == false){
+      cur->waiting_on_thread = child_tid;
+      sema_down(&thread_current()->wait_for_child);
+      cur->child_arr[i].already_waited = true;
+      return cur->child_arr[i].exit_status;
 
-	  } 
-	  else if(ischild ){
-			
-		  return cur->child_arr[i].exit_status ;
-	  }
+    } 
+    else if(ischild ){
+      
+      return cur->child_arr[i].exit_status ;
+    }
 
   return -1;
 }
@@ -163,15 +172,9 @@ process_exit (void)
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
-   lock_acquire(get_file_system_lock());
-   file_close(cur->threads_exec_file);
-   int q = 0;
-   for(;q<MAX_OPEN_FILES;q++) {
-	   if(cur->file_descs[q].is_open) {
-		   file_close(cur->file_descs[q].open_file);
-	   }
-   }
-    lock_release(get_file_system_lock());
+   //lock_acquire(get_file_system_lock());
+   
+    //lock_release(get_file_system_lock());
   pd = cur->pagedir;
   if (pd != NULL)
     {
@@ -395,9 +398,9 @@ file_deny_write(file);
 
   success = true;
    file_deny_write(file);
-	t->threads_exec_file = file;
+  t->threads_exec_file = file;
  done:
-	 lock_release(get_file_system_lock());
+   lock_release(get_file_system_lock());
   /* We arrive here whether the load is successful or not. */
   //file_close (file);
   return success;
@@ -665,7 +668,7 @@ setup_stack (void **esp,const char * file_name)
         palloc_free_page (kpage);
     }
 
-     	
+      
 
 
 

@@ -11,7 +11,6 @@
 #include "process.h"
 #include "devices/shutdown.h"
 #include "devices/input.h"
-#include "threads/malloc.h"
 
 
 static void validate_uaddr(const void *uaddr);
@@ -61,9 +60,10 @@ syscall_handler (struct intr_frame *f UNUSED)
       validate_uaddr(args+1);
       validate_uaddr((void*)args[1]);
       char *cmd_line = (char*)args[1];
-
-      f->eax = process_execute(cmd_line);
       
+      f->eax = process_execute(cmd_line);
+    
+    
       break;
     }
 
@@ -122,7 +122,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       validate_uaddr(args+1);
       int fd = args[1];
 
-		  lock_acquire(get_file_system_lock());
+      lock_acquire(get_file_system_lock());
 
       struct file *cur_file = thread_current()->file_descs[fd].open_file;
       f->eax = file_length (cur_file);
@@ -234,7 +234,7 @@ static int read(int fd,uint8_t  * buffer, size_t size) {
     size_t index = 0;
     
     for(;index < size; index++){
-     	buffer[index] = input_getc(); 
+      buffer[index] = input_getc(); 
     }
    
     return size;
@@ -274,12 +274,22 @@ void exit(int code) {
     for (; i < MAX_CHILDREN; ++i) {
       if (parent->child_arr[i].id == thread_current()->tid) {
         parent->child_arr[i].exit_status = code;
-		parent->child_arr[i].already_exited = true;
+        parent->child_arr[i].already_exited = true;
         break;
       }
     }
   }
+  lock_acquire(get_file_system_lock());
+   file_close(thread_current()->threads_exec_file);
+   int q = 0;
+   for(;q<MAX_OPEN_FILES;q++) {
+     if(thread_current()->file_descs[q].is_open) {
+       file_close(thread_current() ->file_descs[q].open_file);
+      thread_current()->file_descs[q].is_open= false;
+     }
+   }
   thread_current()->st = code;
+  lock_release(get_file_system_lock());
   if (parent->waiting_on_thread == thread_current()->tid) {
     sema_up(&parent->wait_for_child);
   } 
