@@ -290,7 +290,7 @@ void exit(int code) {
   int i = 0;
   bool iswaited= false;
   struct thread *parent = thread_current()->parent;
-  //printf(":exiting thread %s\n\n",thread_current()->name);
+ 
   if (parent != NULL) {
     for (; i < MAX_CHILDREN; ++i) {
       if (parent->child_arr[i].id == thread_current()->tid) {
