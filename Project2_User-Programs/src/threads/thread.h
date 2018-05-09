@@ -38,6 +38,7 @@ struct file_desc
 
 struct child_thread_inf
 {
+	bool already_exited;
   tid_t id;
   int exit_status;
 };
@@ -119,7 +120,8 @@ struct thread
     int child_count;
     struct semaphore wait_for_child;
     int st;
-
+	struct file *threads_exec_file;
+	bool load_successfully;
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */

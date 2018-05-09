@@ -64,7 +64,10 @@ token = strtok_r(file_name," ",&save_ptr);
  
 
   }
-     
+   sema_down(&thread_current()->wait_for_child);
+   if(thread_current()->load_successfully == false) {
+	   return -1;
+   }
   return tid;
 }
 
@@ -88,13 +91,14 @@ start_process (void *file_name_)
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success){
-   // sema_up(&thread_current()->parent->wait_for_child);
-   // exit(-1);
-       thread_exit ();
+	thread_current()->parent->load_successfully = false;
+    sema_up(&thread_current()->parent->wait_for_child);
+    thread_exit ();
   }
-
-
-
+  else {
+	thread_current()->parent->load_successfully = true;
+	sema_up(&thread_current()->parent->wait_for_child);
+  }
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -121,29 +125,24 @@ process_wait (tid_t child_tid UNUSED)
 
   struct thread * cur = thread_current();
  // printf("waiting thread is %s waitee is %d\n",cur->name,child_tid);
-  
+  bool ischild = false;
   int i = 0;
     for (; i < MAX_CHILDREN; ++i) {
 
       if (cur->child_arr[i].id == child_tid) {
-       // printf("waiting on child %d\n\n",cur->child_arr[i].id);
-        cur->waiting_on_thread = child_tid;
-          if(cur->child_arr[i].exit_status == 700){
-         //  printf("parent thread is %s\n\n",cur->parent->name);
-          // printf("waiting on child %d\n\n",cur->child_arr[i].id);
+		  ischild = true;
+		  break;
+     }
+	}
+	  if(ischild && cur->child_arr[i].already_exited == false){
+		  cur->waiting_on_thread = child_tid;
+		  sema_down(&thread_current()->wait_for_child);
+		  return cur->child_arr[i].exit_status;
 
-            sema_down(&cur->wait_for_child);
-             //  printf("parent thread is Done , now exiting %s\n\n",cur->parent->name);
-
-         return cur->child_arr[i].exit_status;
-          }
-
-
-      }
-    
-  }
-  //sema_down (&temporary);
- 
+	  } 
+	  else {
+		  return -1;
+	  }
 
   return -1;
 }
@@ -157,8 +156,18 @@ process_exit (void)
   uint32_t *pd;
   if(cur->st==700)
       exit(-1);
+
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
+   lock_acquire(get_file_system_lock());
+   file_close(cur->threads_exec_file);
+   int q = 0;
+   for(;q<MAX_OPEN_FILES;q++) {
+	   if(cur->file_descs[q].is_open) {
+		   file_close(cur->file_descs[q].open_file);
+	   }
+   }
+    lock_release(get_file_system_lock());
   pd = cur->pagedir;
   if (pd != NULL)
     {
@@ -173,7 +182,6 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-  sema_up (&temporary);
 }
 
 /* Sets up the CPU for running user code in the current
@@ -290,7 +298,7 @@ load (char *file_name, void (**eip) (void), void **esp)
  char * exec_name = palloc_get_page(0);
  strlcpy(exec_name,file_name,PGSIZE);
 char * save_ptr,*token;
-
+ lock_acquire(get_file_system_lock());
 token = strtok_r(exec_name," ",&save_ptr);   
   file = filesys_open (token);
   //palloc_free_page(exec_name);
@@ -383,10 +391,11 @@ token = strtok_r(exec_name," ",&save_ptr);
 
   success = true;
    file_deny_write(file);
-
+	t->threads_exec_file = file;
  done:
+	 lock_release(get_file_system_lock());
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
+  //file_close (file);
   return success;
 }
 

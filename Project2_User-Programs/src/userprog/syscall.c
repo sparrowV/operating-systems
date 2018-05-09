@@ -71,21 +71,19 @@ syscall_handler (struct intr_frame *f UNUSED)
     while(cmd_line[i] != ' ' && i<strlen(cmd_line)){
       arr[i] = cmd_line[i];
         i++;
-     //   printf("I is %d",i);
     }
-   // printf("arr is %s\n\n",arr);
    lock_acquire(get_file_system_lock());
     struct file* cmd_file = filesys_open (arr);
     if(cmd_file == NULL){
+	lock_release(get_file_system_lock());
       f->eax = -1;
-  //  printf("here\n\n\n");
 
     }else{
       file_close(cmd_file);
-      //printf("prcess execute\n\n\\n");
+      lock_release(get_file_system_lock());
       f->eax = process_execute(cmd_line);
     }
- 	  lock_release(get_file_system_lock());
+ 	  
       break;
     }
 
@@ -291,14 +289,15 @@ static int write(int fd,void * buffer, size_t size) {
 
 void exit(int code) {
   int i = 0;
+  bool iswaited= false;
   struct thread *parent = thread_current()->parent;
-  thread_current()->st = 600;
   //printf(":exiting thread %s\n\n",thread_current()->name);
   if (parent != NULL) {
     for (; i < MAX_CHILDREN; ++i) {
       if (parent->child_arr[i].id == thread_current()->tid) {
         //printf("exiting thread %s parent is %s",thread_current()->name,parent->name);
         parent->child_arr[i].exit_status = code;
+		parent->child_arr[i].already_exited = true;
         break;
       }
     }
@@ -306,6 +305,7 @@ void exit(int code) {
   if (parent->waiting_on_thread == thread_current()->tid) {
     sema_up(&parent->wait_for_child);
   } 
+  thread_current()->st = code;
   printf("%s: exit(%d)\n", thread_current()->name, code);
   thread_exit();
 }

@@ -195,10 +195,10 @@ thread_create (const char *name, int priority,
   tid = t->tid = allocate_tid ();
 
   struct thread *cur = thread_current();
+  cur->child_arr[cur->child_count].already_exited = false;
   cur->child_arr[cur->child_count].id = tid;
   cur->child_arr[cur->child_count].exit_status = 700;
   cur->child_count++;
-  cur->waiting_on_thread = 0;
   t->st = 700;
 
   t->parent = cur;
@@ -491,6 +491,7 @@ init_thread (struct thread *t, const char *name, int priority)
   list_push_back (&all_list, &t->allelem);
   sema_init(&t->wait_for_child, 0);
   t->child_count = 0;
+  t->waiting_on_thread = -1;
   intr_set_level (old_level);
 }
 
