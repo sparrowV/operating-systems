@@ -196,6 +196,7 @@ thread_create (const char *name, int priority,
 
   struct thread *cur = thread_current();
   cur->child_arr[cur->child_count].already_exited = false;
+  cur->child_arr[cur->child_count].already_waited = false;
   cur->child_arr[cur->child_count].id = tid;
   cur->child_arr[cur->child_count].exit_status = 700;
   cur->child_count++;

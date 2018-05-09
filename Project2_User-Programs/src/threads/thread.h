@@ -38,6 +38,7 @@ struct file_desc
 
 struct child_thread_inf
 {
+	bool already_waited;
 	bool already_exited;
   tid_t id;
   int exit_status;

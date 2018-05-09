@@ -300,10 +300,11 @@ void exit(int code) {
       }
     }
   }
+  thread_current()->st = code;
   if (parent->waiting_on_thread == thread_current()->tid) {
     sema_up(&parent->wait_for_child);
   } 
-  thread_current()->st = code;
+  
   printf("%s: exit(%d)\n", thread_current()->name, code);
   thread_exit();
 }

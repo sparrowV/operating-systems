@@ -134,14 +134,20 @@ process_wait (tid_t child_tid UNUSED)
 		  break;
      }
 	}
+	if(!ischild || cur->child_arr[i].already_waited) {
+		return -1;
+	}
+
 	  if(ischild && cur->child_arr[i].already_exited == false){
 		  cur->waiting_on_thread = child_tid;
 		  sema_down(&thread_current()->wait_for_child);
+		  cur->child_arr[i].already_waited = true;
 		  return cur->child_arr[i].exit_status;
 
 	  } 
-	  else {
-		  return -1;
+	  else if(ischild ){
+			
+		  return cur->child_arr[i].exit_status ;
 	  }
 
   return -1;
@@ -307,7 +313,7 @@ token = strtok_r(exec_name," ",&save_ptr);
       printf ("load: %s: open failed\n", file_name);
       goto done;
     }
-
+file_deny_write(file);
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
