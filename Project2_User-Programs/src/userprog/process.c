@@ -18,6 +18,8 @@
 #include "threads/synch.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
+#include "userprog/syscall.h"
 
 
 
@@ -50,15 +52,6 @@ process_execute (const char *file_name)
   //printf("%d\n", thread_current()->tid);
   tid = thread_create (f_name, PRI_DEFAULT, start_process, fn_copy);
   free(f_name);
-
-
-// //char * exec_name = palloc_get_page(0);
-// strlcpy(exec_name,file_name,PGSIZE);
-//char * save_ptr,*token;
-
-//token = strtok_r(file_name," ",&save_ptr);   
-
-
   
 
   /* Create a new thread to execute FILE_NAME. */

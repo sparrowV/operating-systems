@@ -11,15 +11,13 @@
 #include "process.h"
 #include "devices/shutdown.h"
 #include "devices/input.h"
+#include "threads/malloc.h"
 
 
-//bool is_valid_addr(const void *uaddr);
 static void validate_uaddr(const void *uaddr);
 static void syscall_handler (struct intr_frame *);
 static int write(int fd,void * buffer, size_t size);
 static bool create (const char* file, unsigned initial_size);
-//static void open(struct file_desc * open_files);
-//static void exit(int code);
 static int get_file_desc(struct file_desc * file_descs);
 bool is_valid_fd(int fd);
 static int read(int fd,uint8_t  * buffer, size_t size);
@@ -61,27 +59,11 @@ syscall_handler (struct intr_frame *f UNUSED)
 
     case SYS_EXEC: {
       validate_uaddr(args+1);
-      validate_uaddr(args[1]);
+      validate_uaddr((void*)args[1]);
       char *cmd_line = (char*)args[1];
-      char * arr = malloc(strlen(cmd_line) + 4);
-      memset(arr,0,strlen(cmd_line)+4);
-    int i=0;
-    while(cmd_line[i] != ' ' && i<strlen(cmd_line)){
-      arr[i] = cmd_line[i];
-        i++;
-    }
-  /* lock_acquire(get_file_system_lock());
-    struct file* cmd_file = filesys_open (arr);
-    if(cmd_file == NULL){
-	lock_release(get_file_system_lock());
-      f->eax = -1;
 
-    }else{
-      file_close(cmd_file);
-      lock_release(get_file_system_lock()); */
       f->eax = process_execute(cmd_line);
-    
- 	  
+      
       break;
     }
 
@@ -287,13 +269,10 @@ static int write(int fd,void * buffer, size_t size) {
 
 void exit(int code) {
   int i = 0;
-  bool iswaited= false;
   struct thread *parent = thread_current()->parent;
-  //printf(":exiting thread %s\n\n",thread_current()->name);
   if (parent != NULL) {
     for (; i < MAX_CHILDREN; ++i) {
       if (parent->child_arr[i].id == thread_current()->tid) {
-        //printf("exiting thread %s parent is %s",thread_current()->name,parent->name);
         parent->child_arr[i].exit_status = code;
 		parent->child_arr[i].already_exited = true;
         break;
@@ -315,7 +294,6 @@ static bool create (const char* file, unsigned initial_size) {
   validate_uaddr(file);
   
   lock_acquire(get_file_system_lock());
-//using synchronization constructs:
 
   bool res = filesys_create (file,  initial_size);
   lock_release(get_file_system_lock());
