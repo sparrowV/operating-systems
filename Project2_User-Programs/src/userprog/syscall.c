@@ -300,7 +300,17 @@ void exit(int code) {
       }
     }
   }
+  lock_acquire(get_file_system_lock());
+   file_close(thread_current()->threads_exec_file);
+   int q = 0;
+   for(;q<MAX_OPEN_FILES;q++) {
+	   if(thread_current()->file_descs[q].is_open) {
+		   file_close(thread_current() ->file_descs[q].open_file);
+			thread_current()->file_descs[q].is_open= false;
+	   }
+   }
   thread_current()->st = code;
+  lock_release(get_file_system_lock());
   if (parent->waiting_on_thread == thread_current()->tid) {
     sema_up(&parent->wait_for_child);
   } 

@@ -170,15 +170,9 @@ process_exit (void)
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
-   lock_acquire(get_file_system_lock());
-   file_close(cur->threads_exec_file);
-   int q = 0;
-   for(;q<MAX_OPEN_FILES;q++) {
-	   if(cur->file_descs[q].is_open) {
-		   file_close(cur->file_descs[q].open_file);
-	   }
-   }
-    lock_release(get_file_system_lock());
+   //lock_acquire(get_file_system_lock());
+   
+    //lock_release(get_file_system_lock());
   pd = cur->pagedir;
   if (pd != NULL)
     {
