@@ -70,7 +70,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       arr[i] = cmd_line[i];
         i++;
     }
-  /* lock_acquire(get_file_system_lock());
+   lock_acquire(get_file_system_lock());
     struct file* cmd_file = filesys_open (arr);
     if(cmd_file == NULL){
 	lock_release(get_file_system_lock());
@@ -78,12 +78,13 @@ syscall_handler (struct intr_frame *f UNUSED)
 
     }else{
       file_close(cmd_file);
-      lock_release(get_file_system_lock()); */
+      lock_release(get_file_system_lock()); 
       f->eax = process_execute(cmd_line);
-    
+    }
  	  
       break;
     }
+    
 
     case SYS_WAIT: {
       validate_uaddr(args+1);
@@ -302,8 +303,11 @@ void exit(int code) {
     }
   }
 
+
+     lock_acquire(get_file_system_lock());
   
     file_close(thread_current()->threads_exec_file);
+       lock_release(get_file_system_lock());
   
   thread_current()->st = code;
   if (parent->waiting_on_thread == thread_current()->tid) {
