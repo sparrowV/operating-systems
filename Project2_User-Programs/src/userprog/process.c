@@ -22,8 +22,6 @@
 
 
 #define DEFAULT_SIZE 512
-
-static struct semaphore temporary;
 static thread_func start_process NO_RETURN;
 static bool load ( char *cmdline, void (**eip) (void), void **esp);
 
@@ -34,31 +32,38 @@ static bool load ( char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name)
 {
+	char *f_name;
   char *fn_copy;
   tid_t tid;
 
-  sema_init (&temporary, 0);
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
-
+  char *save_ptr;
+  f_name = malloc(strlen(file_name)+1);
+  strlcpy (f_name, file_name, strlen(file_name)+1);
+  f_name = strtok_r (f_name," ",&save_ptr);
+  /* Create a new thread to execute FILE_NAME. */
+  //printf("%d\n", thread_current()->tid);
+  tid = thread_create (f_name, PRI_DEFAULT, start_process, fn_copy);
+  free(f_name);
 
 
 // //char * exec_name = palloc_get_page(0);
 // strlcpy(exec_name,file_name,PGSIZE);
-char * save_ptr,*token;
+//char * save_ptr,*token;
 
-token = strtok_r(file_name," ",&save_ptr);   
+//token = strtok_r(file_name," ",&save_ptr);   
 
 
   
 
   /* Create a new thread to execute FILE_NAME. */
   
-  tid = thread_create (token, PRI_DEFAULT, start_process, fn_copy); //changed file_name with exec_name
+  //tid = thread_create (token, PRI_DEFAULT, start_process, fn_copy); //changed file_name with exec_name
   if (tid == TID_ERROR){
     palloc_free_page (fn_copy);
  

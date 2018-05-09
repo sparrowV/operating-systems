@@ -63,14 +63,14 @@ syscall_handler (struct intr_frame *f UNUSED)
       validate_uaddr(args+1);
       validate_uaddr(args[1]);
       char *cmd_line = (char*)args[1];
-      char arr[strlen(cmd_line)+4];
+      char * arr = malloc(strlen(cmd_line) + 4);
       memset(arr,0,strlen(cmd_line)+4);
     int i=0;
     while(cmd_line[i] != ' ' && i<strlen(cmd_line)){
       arr[i] = cmd_line[i];
         i++;
     }
-   lock_acquire(get_file_system_lock());
+  /* lock_acquire(get_file_system_lock());
     struct file* cmd_file = filesys_open (arr);
     if(cmd_file == NULL){
 	lock_release(get_file_system_lock());
@@ -78,9 +78,9 @@ syscall_handler (struct intr_frame *f UNUSED)
 
     }else{
       file_close(cmd_file);
-      lock_release(get_file_system_lock());
+      lock_release(get_file_system_lock()); */
       f->eax = process_execute(cmd_line);
-    }
+    
  	  
       break;
     }
