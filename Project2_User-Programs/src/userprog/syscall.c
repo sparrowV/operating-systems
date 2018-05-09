@@ -65,8 +65,6 @@ syscall_handler (struct intr_frame *f UNUSED)
       char *cmd_line = (char*)args[1];
       char arr[strlen(cmd_line)+4];
       memset(arr,0,strlen(cmd_line)+4);
-    //  printf("length is %d",strlen(cmd_line));
-
     int i=0;
     while(cmd_line[i] != ' ' && i<strlen(cmd_line)){
       arr[i] = cmd_line[i];
