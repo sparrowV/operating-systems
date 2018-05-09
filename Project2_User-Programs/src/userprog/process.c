@@ -174,7 +174,7 @@ process_exit (void)
 	   }
    }
     lock_release(get_file_system_lock());
-  //printf("exiting thread is %s\n",cur->name);
+
   uint32_t *pd;
   if(cur->st==700)
       exit(-1);
