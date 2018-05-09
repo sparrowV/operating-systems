@@ -11,6 +11,8 @@
 #include "process.h"
 #include "devices/shutdown.h"
 #include "devices/input.h"
+#include "threads/malloc.h"
+#include "lib/string.h"
 
 
 static void validate_uaddr(const void *uaddr);
@@ -60,9 +62,11 @@ syscall_handler (struct intr_frame *f UNUSED)
       validate_uaddr(args+1);
       validate_uaddr((void*)args[1]);
       char *cmd_line = (char*)args[1];
+      char * arr = malloc(strlen(cmd_line) + 4);
+      memset(arr,0,strlen(cmd_line)+4);
       
+      free(arr);
       f->eax = process_execute(cmd_line);
-    
     
       break;
     }

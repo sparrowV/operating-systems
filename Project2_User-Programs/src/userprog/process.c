@@ -54,19 +54,10 @@ process_execute (const char *file_name)
   free(f_name);
 
 
-// //char * exec_name = palloc_get_page(0);
-// strlcpy(exec_name,file_name,PGSIZE);
-//char * save_ptr,*token;
-
-//token = strtok_r(file_name," ",&save_ptr);   
-
-
   
 
   /* Create a new thread to execute FILE_NAME. */
-  
-  //tid = thread_create (token, PRI_DEFAULT, start_process, fn_copy); //changed file_name with exec_name
-  if (tid == TID_ERROR){
+    if (tid == TID_ERROR){
     palloc_free_page (fn_copy);
  
 
@@ -174,7 +165,6 @@ process_exit (void)
      to the kernel-only page directory. */
    //lock_acquire(get_file_system_lock());
    
-    //lock_release(get_file_system_lock());
   pd = cur->pagedir;
   if (pd != NULL)
     {
@@ -297,16 +287,13 @@ load (char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
 
-//char * exec_name = palloc_get_page(0);
- //strlcpy (exec_name, file_name, PGSIZE);
 
 
-
- char * exec_name = palloc_get_page(0);
- strlcpy(exec_name,file_name,PGSIZE);
-char * save_ptr,*token;
- lock_acquire(get_file_system_lock());
-token = strtok_r(exec_name," ",&save_ptr);   
+  char * exec_name = palloc_get_page(0);
+  strlcpy(exec_name,file_name,PGSIZE);
+  char * save_ptr,*token;
+  lock_acquire(get_file_system_lock());
+  token = strtok_r(exec_name," ",&save_ptr);   
   file = filesys_open (token);
   //palloc_free_page(exec_name);
   if (file == NULL)
@@ -314,7 +301,7 @@ token = strtok_r(exec_name," ",&save_ptr);
       printf ("load: %s: open failed\n", file_name);
       goto done;
     }
-file_deny_write(file);
+  file_deny_write(file);
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
@@ -557,22 +544,18 @@ setup_stack (void **esp,const char * file_name)
           
       
           void* positions[128];
-          //int * positions = palloc_get_page(0);
      
           int counter = 0;
            char *token, *save_ptr;
            int sum = 0;
-          // printf("reversed string is %s\n",reversed_string);
               for (token = strtok_r (reversed_string, " ", &save_ptr); token != NULL;
                       token = strtok_r (NULL, " ", &save_ptr))
             {
                 char arg[128]; 
-              //  printf("token is %s\n\n",token);
 
 
                char reversed_word[128];
                 memset(reversed_word,0,128);
-                //char * reversed_string = palloc_get_page( PAL_ZERO);
 
                 int begin_w, end_w, count_w = 0;
                 count_w = strlen(token);
@@ -586,27 +569,21 @@ setup_stack (void **esp,const char * file_name)
 
               reversed_word[begin_w] = '\0';
 
-              // printf("esp is %p\n",*esp);
                 memset(arg,0,128);
-               // printf("%d\n",strlen(token));
                    
                 memcpy(arg,reversed_word,strlen(token));
-                // printf("%d\n",strlen(arg));
-            //    printf("arg is : %s\n",arg);
-           // int len = strlen(token);
+       
                 *esp-=strlen(arg)+1;
-            //   printf("%s\n",arg);
                 memcpy(*esp,arg,strlen(arg)+1);
          
               //save the pointer
               positions[counter] = *esp;
-                //printf("%p\n\n",positions[counter]);
                
               sum+=strlen(arg)+1;
       
             
                 
-                counter++;
+              counter++;
     
 
 
@@ -614,24 +591,19 @@ setup_stack (void **esp,const char * file_name)
             }
              
             
-              int nulls = 4 - sum % 4; 
+          int nulls = 4 - sum % 4; 
  
-            char null_bytes[nulls];
-            memset(null_bytes,0,nulls);
-
-
-       
-                 
-            
+          char null_bytes[nulls];
+          memset(null_bytes,0,nulls);            
                       
       
           *esp -=nulls;
             memcpy(*esp,null_bytes,nulls);//add null after arguments are added
 
 
-               char n[4];
+            char n[4];
             memset(n,0,4);
-              *esp-=sizeof(4);
+            *esp-=sizeof(4);
             memcpy(*esp,n,4);//add null after arguments are added
 
             int i=0;
@@ -639,15 +611,12 @@ setup_stack (void **esp,const char * file_name)
 
             for(;i<counter;i++){
               *esp-=sizeof(void*);
-                  //   printf("%p\n\n",positions[i]);
                memcpy(*esp,positions + i,sizeof(void*)); //copy reference to our arguments
               
             }
            
             
 
-          // *esp-=sizeof(char**); //copy argv[0]
-          // memcpy(*esp,&argv,sizeof(char**));
           void * sv = *esp;
           *esp-=4;
           memcpy(*esp,&sv,4);
@@ -659,9 +628,7 @@ setup_stack (void **esp,const char * file_name)
           //fake return address
             *esp-=sizeof(4);
             memcpy(*esp,n,4);//add null after arguments are added
-  
-   //   hex_dump((uintptr_t)*esp, *esp, PHYS_BASE - *esp, true);
-      
+        
       
       }
       else
