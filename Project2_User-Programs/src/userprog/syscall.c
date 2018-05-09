@@ -179,19 +179,17 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_WRITE: {
       validate_uaddr(args+1);
       validate_uaddr(args+2);
+
       validate_uaddr(args+3);
       int fd = args[1];
       void *buffer = (void*)args[2];
       size_t size = args[3];
       validate_uaddr(buffer);
+    
 
       lock_acquire(get_file_system_lock());
       int res = write(fd,buffer,size);
-      if (res == -1) {
-          lock_release(get_file_system_lock());
-        exit(-1);
-      }
-      f->eax = res;
+          f->eax = res;
       lock_release(get_file_system_lock());
       break;
     }
@@ -225,12 +223,12 @@ syscall_handler (struct intr_frame *f UNUSED)
       validate_uaddr(args+1);
       int fd = args[1];
       struct file_desc *cur = &thread_current()->file_descs[fd];
-      if (is_valid_fd(fd) && cur->is_open) {
-        lock_acquire(get_file_system_lock());
-        file_close(cur->open_file);
-        lock_release(get_file_system_lock());
-        cur->is_open = false;
-      }
+        if (is_valid_fd(fd) && cur->is_open) {
+          lock_acquire(get_file_system_lock());
+          file_close(cur->open_file);
+          lock_release(get_file_system_lock());
+          cur->is_open = false;
+        }
       break;
     }
 
@@ -246,7 +244,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 }
 
 static int read(int fd,uint8_t  * buffer, size_t size) {
-  if (!is_valid_fd(fd) || fd == 1) return -1;
+  if (!is_valid_fd(fd)) return -1;
   if (fd == 0){
     
     size_t index = 0;
@@ -258,7 +256,7 @@ static int read(int fd,uint8_t  * buffer, size_t size) {
     return size;
   } else {
     struct file *cur_file = thread_current()->file_descs[fd].open_file;
-    if(buffer == NULL || cur_file == NULL) return -1;
+    if(cur_file == NULL) return -1;
  
       int s =  file_read(cur_file,buffer,size);
       return s;
@@ -270,16 +268,19 @@ static int read(int fd,uint8_t  * buffer, size_t size) {
 
 
 static int write(int fd,void * buffer, size_t size) {
-  if (!is_valid_fd(fd) || fd == 0) return -1;
+  //printf("%d\n\n\n",fd);
+  if (!is_valid_fd(fd)) return -1;
   if (fd == 1){
      putbuf(buffer,size);
     return size;
   } else {
     struct file *cur_file = thread_current()->file_descs[fd].open_file;
-    if(buffer == NULL || cur_file == NULL) return -1;
-    if (!cur_file->deny_write) {
+    if(cur_file == NULL) return -1;
+        //thread_yield();
+        //printf("%s\n\n",(char *)buffer);
+       // printf("id is %d",thread_current()->tid);
       return file_write(cur_file,buffer,size);
-    }
+    
   }
   return -1;
 }
@@ -300,6 +301,8 @@ void exit(int code) {
       }
     }
   }
+
+   file_close(thread_current()->threads_exec_file);
   thread_current()->st = code;
   if (parent->waiting_on_thread == thread_current()->tid) {
     sema_up(&parent->wait_for_child);

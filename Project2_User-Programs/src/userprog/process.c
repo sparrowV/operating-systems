@@ -144,6 +144,7 @@ process_wait (tid_t child_tid UNUSED)
 	}
 
 	  if(ischild && cur->child_arr[i].already_exited == false){
+     // printf("parent thread %s is waiting \n\n",cur->name);
 		  cur->waiting_on_thread = child_tid;
 		  sema_down(&thread_current()->wait_for_child);
 		  cur->child_arr[i].already_waited = true;
@@ -163,6 +164,16 @@ void
 process_exit (void)
 {
   struct thread *cur = thread_current ();
+     lock_acquire(get_file_system_lock());
+ 
+   int q = 0;
+   for(;q<MAX_OPEN_FILES;q++) {
+	   if(cur->file_descs[q].is_open) {
+       cur->file_descs[q].is_open = false;
+		   file_close(cur->file_descs[q].open_file);
+	   }
+   }
+    lock_release(get_file_system_lock());
   //printf("exiting thread is %s\n",cur->name);
   uint32_t *pd;
   if(cur->st==700)
@@ -170,15 +181,7 @@ process_exit (void)
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
-   lock_acquire(get_file_system_lock());
-   file_close(cur->threads_exec_file);
-   int q = 0;
-   for(;q<MAX_OPEN_FILES;q++) {
-	   if(cur->file_descs[q].is_open) {
-		   file_close(cur->file_descs[q].open_file);
-	   }
-   }
-    lock_release(get_file_system_lock());
+
   pd = cur->pagedir;
   if (pd != NULL)
     {
@@ -318,7 +321,7 @@ token = strtok_r(exec_name," ",&save_ptr);
       printf ("load: %s: open failed\n", file_name);
       goto done;
     }
-file_deny_write(file);
+
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
