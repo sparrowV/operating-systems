@@ -302,7 +302,9 @@ void exit(int code) {
     }
   }
 
-   file_close(thread_current()->threads_exec_file);
+  
+    file_close(thread_current()->threads_exec_file);
+  
   thread_current()->st = code;
   if (parent->waiting_on_thread == thread_current()->tid) {
     sema_up(&parent->wait_for_child);

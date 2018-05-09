@@ -164,8 +164,8 @@ void
 process_exit (void)
 {
   struct thread *cur = thread_current ();
-     lock_acquire(get_file_system_lock());
- 
+   lock_acquire(get_file_system_lock());
+
    int q = 0;
    for(;q<MAX_OPEN_FILES;q++) {
 	   if(cur->file_descs[q].is_open) {
