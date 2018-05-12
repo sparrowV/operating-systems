@@ -25,13 +25,9 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
-<<<<<<< HEAD
 #define MAX_OPEN_FILES 128
 #define MAX_CHILDREN 32
-=======
-#define MAX_OPEN_FILES 130
-#define MAX_CHILDREN 64
->>>>>>> f939656203f30c0f3576f1cd1068d27335a7e2fd
+
 #define CREATED -2
 
 struct file_desc

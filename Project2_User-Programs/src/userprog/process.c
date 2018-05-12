@@ -34,7 +34,7 @@ static bool load ( char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name)
 {
-  char *f_name;
+  char *command_name;
   char *fn_copy;
   tid_t tid;
 
@@ -45,17 +45,14 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
   char *save_ptr;
-  f_name = malloc(strlen(file_name)+1);
-<<<<<<< HEAD
-  if(f_name == NULL) return TID_ERROR;
-=======
->>>>>>> f939656203f30c0f3576f1cd1068d27335a7e2fd
-  strlcpy (f_name, file_name, strlen(file_name)+1);
-  f_name = strtok_r (f_name," ",&save_ptr);
+  command_name = malloc(strlen(file_name)+1);
+  if(command_name == NULL) return TID_ERROR;
+  strlcpy (command_name, file_name, strlen(file_name)+1);
+  command_name = strtok_r (command_name," ",&save_ptr);
   /* Create a new thread to execute FILE_NAME. */
   //printf("%d\n", thread_current()->tid);
-  tid = thread_create (f_name, PRI_DEFAULT, start_process, fn_copy);
-  free(f_name);
+  tid = thread_create (command_name, PRI_DEFAULT, start_process, fn_copy);
+  free(command_name);
 
 
   
@@ -71,12 +68,7 @@ process_execute (const char *file_name)
 
    sema_down(&thread_current()->wait_for_child);
    if(thread_current()->load_successfully == false) {
-<<<<<<< HEAD
-    // printf("cant load\n");
-	   return -1;
-=======
      return -1;
->>>>>>> f939656203f30c0f3576f1cd1068d27335a7e2fd
    }
    //printf("waiting thread free \n");
   return tid;
@@ -109,15 +101,8 @@ start_process (void *file_name_)
     exit(-1);
   }
   else {
-<<<<<<< HEAD
-  //printf("success. parent thread is = %s , child thread is  = %s ",thread_current()->parent->name,thread_current()->name);
-	thread_current()->parent->load_successfully = true;
-  
-	sema_up(&thread_current()->parent->wait_for_child);
-=======
   thread_current()->parent->load_successfully = true;
   sema_up(&thread_current()->parent->wait_for_child);
->>>>>>> f939656203f30c0f3576f1cd1068d27335a7e2fd
   }
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -153,26 +138,6 @@ process_wait (tid_t child_tid UNUSED)
       ischild = true;
       break;
      }
-<<<<<<< HEAD
-	}
-	if(!ischild || cur->child_arr[i].already_waited) {
-		return -1;
-	}
-
-	  if(ischild && cur->child_arr[i].already_exited == false){
-     // printf("parent thread %s is waiting \n\n",cur->name);
-		  cur->waiting_on_thread = child_tid;
-		  sema_down(&thread_current()->wait_for_child);
-		  cur->child_arr[i].already_waited = true;
-      //printf("parent is %s child is %d\n\n",thread_current()->name,cur->child_arr[i].id);
-		  return cur->child_arr[i].exit_status;
-
-	  } 
-	  else if(ischild ){
-			
-		  return cur->child_arr[i].exit_status ;
-	  }
-=======
   }
   if(!ischild || cur->child_arr[i].already_waited) {
     return -1;
@@ -189,7 +154,6 @@ process_wait (tid_t child_tid UNUSED)
       
       return cur->child_arr[i].exit_status ;
     }
->>>>>>> f939656203f30c0f3576f1cd1068d27335a7e2fd
 
   return -1;
 }
@@ -199,7 +163,6 @@ void
 process_exit (void)
 {
   struct thread *cur = thread_current ();
-<<<<<<< HEAD
    lock_acquire(get_file_system_lock());
 
    int q = 0;
@@ -217,17 +180,6 @@ process_exit (void)
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
 
-=======
-  //printf("exiting thread is %s\n",cur->name);
-  uint32_t *pd;
-  if(cur->st==700)
-      exit(-1);
-
-  /* Destroy the current process's page directory and switch back
-     to the kernel-only page directory. */
-   //lock_acquire(get_file_system_lock());
-   
->>>>>>> f939656203f30c0f3576f1cd1068d27335a7e2fd
   pd = cur->pagedir;
   if (pd != NULL)
     {
@@ -356,7 +308,6 @@ load (char *file_name, void (**eip) (void), void **esp)
 
 
 
-<<<<<<< HEAD
 
  char * exec_name = malloc(strlen(file_name)+2);
  if(exec_name == NULL) goto done;
@@ -364,25 +315,13 @@ load (char *file_name, void (**eip) (void), void **esp)
 char * save_ptr,*token;
  lock_acquire(get_file_system_lock());
 token = strtok_r(exec_name," ",&save_ptr);   
-=======
-  char * exec_name = palloc_get_page(0);
-  strlcpy(exec_name,file_name,PGSIZE);
-  char * save_ptr,*token;
-  lock_acquire(get_file_system_lock());
-  token = strtok_r(exec_name," ",&save_ptr);   
->>>>>>> f939656203f30c0f3576f1cd1068d27335a7e2fd
   file = filesys_open (token);
-  //palloc_free_page(exec_name);
+  free(exec_name);
   if (file == NULL)
     {
       printf ("load: %s: open failed\n", file_name);
       goto done;
     }
-<<<<<<< HEAD
-
-=======
-  file_deny_write(file);
->>>>>>> f939656203f30c0f3576f1cd1068d27335a7e2fd
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
