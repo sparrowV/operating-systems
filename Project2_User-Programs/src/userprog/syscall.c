@@ -79,6 +79,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     }else{
       file_close(cmd_file);
       lock_release(get_file_system_lock()); 
+     
       f->eax = process_execute(cmd_line);
     }
  	  

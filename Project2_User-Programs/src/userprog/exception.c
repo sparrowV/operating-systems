@@ -91,6 +91,7 @@ kill (struct intr_frame *f)
               thread_name (), f->vec_no, intr_name (f->vec_no));
       intr_dump_frame (f);
       thread_exit ();
+     //exit(-1);
 
     case SEL_KCSEG:
       /* Kernel's code segment, which indicates a kernel bug.
@@ -106,6 +107,7 @@ kill (struct intr_frame *f)
       printf ("Interrupt %#04x (%s) in unknown segment %04x\n",
              f->vec_no, intr_name (f->vec_no), f->cs);
       thread_exit ();
+    // exit(-1);
     }
 }
 
@@ -158,7 +160,7 @@ page_fault (struct intr_frame *f)
 
   // user is trying to access kernel memory
   if (user) {
-    if (!is_valid_uaddr(fault_addr)) {
+    if (fault_addr == NULL || !is_valid_uaddr(fault_addr)) {
       exit(-1);
     }
   }

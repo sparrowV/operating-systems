@@ -44,6 +44,7 @@ process_execute (const char *file_name)
   strlcpy (fn_copy, file_name, PGSIZE);
   char *save_ptr;
   f_name = malloc(strlen(file_name)+1);
+  if(f_name == NULL) return TID_ERROR;
   strlcpy (f_name, file_name, strlen(file_name)+1);
   f_name = strtok_r (f_name," ",&save_ptr);
   /* Create a new thread to execute FILE_NAME. */
@@ -69,10 +70,15 @@ process_execute (const char *file_name)
  
 
   }
+
+ // printf("waiting parent is : %s\n\n",thread_current()->name);
+
    sema_down(&thread_current()->wait_for_child);
    if(thread_current()->load_successfully == false) {
+    // printf("cant load\n");
 	   return -1;
    }
+   //printf("waiting thread free \n");
   return tid;
 }
 
@@ -98,10 +104,14 @@ start_process (void *file_name_)
   if (!success){
 	thread_current()->parent->load_successfully = false;
     sema_up(&thread_current()->parent->wait_for_child);
-    thread_exit ();
+   // printf("not success. parent thread is %s= , child thread is %s =",thread_current()->parent->name,thread_current()->name);
+    //thread_exit ();
+    exit(-1);
   }
   else {
+  //printf("success. parent thread is = %s , child thread is  = %s ",thread_current()->parent->name,thread_current()->name);
 	thread_current()->parent->load_successfully = true;
+  
 	sema_up(&thread_current()->parent->wait_for_child);
   }
   /* Start the user process by simulating a return from an
@@ -148,6 +158,7 @@ process_wait (tid_t child_tid UNUSED)
 		  cur->waiting_on_thread = child_tid;
 		  sema_down(&thread_current()->wait_for_child);
 		  cur->child_arr[i].already_waited = true;
+      //printf("parent is %s child is %d\n\n",thread_current()->name,cur->child_arr[i].id);
 		  return cur->child_arr[i].exit_status;
 
 	  } 
@@ -176,8 +187,7 @@ process_exit (void)
     lock_release(get_file_system_lock());
 
   uint32_t *pd;
-  if(cur->st==700)
-      exit(-1);
+  
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -196,6 +206,10 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+
+
+    if(cur->st==700)
+      exit(-1);
 }
 
 /* Sets up the CPU for running user code in the current
@@ -309,7 +323,8 @@ load (char *file_name, void (**eip) (void), void **esp)
 
 
 
- char * exec_name = palloc_get_page(0);
+ char * exec_name = malloc(strlen(file_name)+2);
+ if(exec_name == NULL) goto done;
  strlcpy(exec_name,file_name,PGSIZE);
 char * save_ptr,*token;
  lock_acquire(get_file_system_lock());
