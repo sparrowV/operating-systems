@@ -50,27 +50,22 @@ process_execute (const char *file_name)
   strlcpy (command_name, file_name, strlen(file_name)+1);
   command_name = strtok_r (command_name," ",&save_ptr);
   /* Create a new thread to execute FILE_NAME. */
-  //printf("%d\n", thread_current()->tid);
   tid = thread_create (command_name, PRI_DEFAULT, start_process, fn_copy);
   free(command_name);
 
 
   
 
-  /* Create a new thread to execute FILE_NAME. */
-    if (tid == TID_ERROR){
+  if (tid == TID_ERROR){
     palloc_free_page (fn_copy);
  
 
   }
 
- // printf("waiting parent is : %s\n\n",thread_current()->name);
-
    sema_down(&thread_current()->wait_for_child);
    if(thread_current()->load_successfully == false) {
      return -1;
    }
-   //printf("waiting thread free \n");
   return tid;
 }
 
@@ -539,11 +534,7 @@ setup_stack (void **esp,const char * file_name)
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success){
         *esp = PHYS_BASE;
-              
-        //printf("filename is : %s \n\n\n\n",file_name);
-
-          //strrev(file_name); //reverse string in place. Keep in mind that string does not change the place!!!
-          // char * revered_string = ReverseConstString(file_name);
+                       
           char reversed_string[256];
           memset(reversed_string,0,DEFAULT_SIZE);
           //char * reversed_string = palloc_get_page( PAL_ZERO);
