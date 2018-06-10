@@ -24,7 +24,6 @@
 #include <random.h>
 #include "tests/lib.h"
 
-
 static const int EXPECTED_DEPTH_TO_PASS = 30;
 static const int EXPECTED_REPETITIONS = 10;
 
@@ -34,7 +33,6 @@ enum child_termination_mode { RECURSE, CRASH };
 
 /* Spawn a recursive copy of ourselves, passing along instructions
    for the child. */
-
 static pid_t
 spawn_child (int c, enum child_termination_mode mode)
 {
@@ -69,37 +67,27 @@ consume_some_resources_and_die (int seed)
 {
   consume_some_resources ();
   random_init (seed);
-  volatile int *PHYS_BASE = (volatile int *)0xC0000000;
+  int *PHYS_BASE = (int *)0xC0000000;
 
   switch (random_ulong () % 5)
     {
       case 0:
-     //  msg("here %d\n\n\n\n\n\n\n",0);
-        *(volatile int *) NULL = 42;
-             
+        *(int *) NULL = 42;
 
       case 1:
-            // msg("here %d\n\n\n\n\n\n\n",1);
-        return *(volatile int *) NULL;
-       
+        return *(int *) NULL;
 
       case 2:
-         //   msg("here %d\n\n\n\n\n\n\n",2);
         return *PHYS_BASE;
-        
 
       case 3:
-             //  msg("here %d\n\n\n\n\n\n\n",3);
         *PHYS_BASE = 42;
-     
 
       case 4:
-      //msg("here %d\n\n\n\n\n\n\n",4);
         open ((char *)PHYS_BASE);
         exit (-1);
 
       default:
-     // msg("not reached\n\n\n\n\n");
         NOT_REACHED ();
     }
   return 0;
@@ -143,7 +131,6 @@ main (int argc, char *argv[])
          spawned at a certain depth. */
       if (n > EXPECTED_DEPTH_TO_PASS/2)
         {
-        //  msg("sd\n");
           child_pid = spawn_child (n + 1, CRASH);
           if (child_pid != -1)
             {
@@ -154,7 +141,6 @@ main (int argc, char *argv[])
              the next spawn_child below. */
         }
 
-     // msg(" i = %d\n",i);
       /* Now spawn the child that will recurse. */
       child_pid = spawn_child (n + 1, RECURSE);
 
@@ -182,7 +168,6 @@ main (int argc, char *argv[])
 
   if (n == 0)
     {
-    //  msg ("child num is %d",expected_depth);
       if (expected_depth < EXPECTED_DEPTH_TO_PASS)
         fail ("should have forked at least %d times.", EXPECTED_DEPTH_TO_PASS);
       msg ("success. program forked %d times.", howmany);
@@ -191,6 +176,4 @@ main (int argc, char *argv[])
 
   return expected_depth;
 }
-
-
 // vim: sw=2
