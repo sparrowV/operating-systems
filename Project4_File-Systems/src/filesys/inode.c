@@ -103,7 +103,7 @@ byte_to_sector (const struct inode *inode, off_t pos)
 		struct double_indirect_struct * double_indirect = calloc(1,sizeof(struct double_indirect_struct));
 		block_read (fs_device, inode->data.double_indirect, double_indirect);
 		struct indirect_struct * indirect = calloc(1,sizeof(struct indirect_struct));
-		block_read (fs_device, double_inditect[table_pos], indirect);
+		block_read (fs_device, double_indirect->indirect[table_pos], indirect);
 		off_t before_table_bytes = table_pos*(CAPACITY_OF_INDIRECT*BLOCK_SECTOR_SIZE);
 		block_sector_t indirect_pos = (pos - (CAPACITY_OF_DIRECT * BLOCK_SECTOR_SIZE + CAPACITY_OF_INDIRECT*BLOCK_SECTOR_SIZE + before_table_bytes)) %BLOCK_SECTOR_SIZE ;
 		block_sector_t real_file_sector_num = indirect->direct[indirect_pos];
@@ -129,6 +129,7 @@ inode_init (void)
   list_init (&open_inodes);
 }
 
+int empty_slot_in_indirect_table(struct indirect_struct * table);
 
 int empty_slot_in_indirect_table(struct indirect_struct * table){
   block_sector_t i;
@@ -292,7 +293,7 @@ inode_create (block_sector_t sector, off_t length)
       }  
          
 
-    }
+    
 
     if(i >= sectors) success = true;
 
@@ -313,7 +314,7 @@ inode_create (block_sector_t sector, off_t length)
       block_write (fs_device, sector, disk_inode);
     }
 
-    free (disk_inode);
+    free(disk_inode);
     if(indirect != NULL) free(indirect);
     if(double_indirect != NULL) free(double_indirect);
   
@@ -410,8 +411,82 @@ inode_close (struct inode *inode)
       if (inode->removed)
         {
           free_map_release (inode->sector, 1);
+          /*
           free_map_release (inode->data.start,
                             bytes_to_sectors (inode->data.length));
+                            */
+
+
+        size_t i;
+        bool has_finished_deleting = false;                    
+        for(i = 0; i<CAPACITY_OF_DIRECT;i++){
+          if(inode->data.direct[i] !=0){
+             free_map_release (inode->data.direct[i] , 1);
+
+          }else{
+            has_finished_deleting = true;
+            break;
+          }
+          
+        }
+
+      
+
+        if(has_finished_deleting == false){
+            struct indirect_struct * indirect = calloc(1, sizeof (struct indirect_struct));
+            block_read (fs_device, inode->data.indirect, indirect);
+            if(inode->data.indirect != 0){
+                  for(i = 0;i<CAPACITY_OF_INDIRECT;i++){
+                    if(indirect->direct[i] != 0){
+                      free_map_release (indirect->direct[i] , 1);
+                    }else{
+                        has_finished_deleting = true;
+                        free(indirect);
+                        break;
+                    } 
+
+                  }
+            }      
+
+          free(indirect);
+        }
+
+        if(has_finished_deleting == false){
+           struct double_indirect_struct * double_indirect = calloc(1, sizeof (struct double_indirect_struct));
+            block_read (fs_device, inode->data.double_indirect, double_indirect);
+
+            //iterate over double_indirect table
+            for(i = 0; i<CAPACITY_OF_INDIRECT;i++){
+                if(double_indirect->indirect[i] !=0){
+                      struct indirect_struct * indirect = calloc(1, sizeof (struct indirect_struct));
+                      block_read (fs_device, double_indirect->indirect[i], indirect);
+
+                      size_t k;
+
+                    for(k = 0;i<CAPACITY_OF_INDIRECT;k++){
+                          if(indirect->direct[k] != 0){
+                          free_map_release (indirect->direct[k] , 1);
+                      }else{
+                          has_finished_deleting = true;
+                          free(indirect);
+                          break;
+                      } 
+
+                    }
+
+                    free(indirect);
+
+
+                  }
+            }
+
+            free(double_indirect);
+
+
+
+        }
+
+
         }
 
       free (inode);
@@ -426,6 +501,8 @@ inode_remove (struct inode *inode)
   ASSERT (inode != NULL);
   inode->removed = true;
 }
+
+
 
 /* Reads SIZE bytes from INODE into BUFFER, starting at position OFFSET.
    Returns the number of bytes actually read, which may be less
