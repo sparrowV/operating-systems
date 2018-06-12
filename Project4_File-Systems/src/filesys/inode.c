@@ -603,8 +603,11 @@ inode_close (struct inode *inode)
 
         if(has_finished_deleting == false){
             struct indirect_struct * indirect = calloc(1, sizeof (struct indirect_struct));
-            block_read (fs_device, inode->data.indirect, indirect);
+          
             if(inode->data.indirect != 0){
+                block_read (fs_device, inode->data.indirect, indirect);
+
+
                   for(i = 0;i<CAPACITY_OF_INDIRECT;i++){
                     if(indirect->direct[i] != 0){
                       free_map_release (indirect->direct[i] , 1);
@@ -620,9 +623,11 @@ inode_close (struct inode *inode)
           free(indirect);
         }
 
-        if(has_finished_deleting == false){
+        if(has_finished_deleting == false && inode->data.double_indirect_num !=0){
            struct double_indirect_struct * double_indirect = calloc(1, sizeof (struct double_indirect_struct));
-            block_read (fs_device, inode->data.double_indirect, double_indirect);
+
+
+           block_read (fs_device, inode->data.double_indirect, double_indirect);
 
             //iterate over double_indirect table
             for(i = 0; i<CAPACITY_OF_INDIRECT;i++){
@@ -637,7 +642,7 @@ inode_close (struct inode *inode)
                           free_map_release (indirect->direct[k] , 1);
                       }else{
                           has_finished_deleting = true;
-                          free(indirect);
+                
                           break;
                       } 
 
