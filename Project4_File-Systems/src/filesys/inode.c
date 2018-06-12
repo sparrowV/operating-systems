@@ -104,22 +104,33 @@ byte_to_sector (const struct inode *inode, off_t pos)
         return real_file_sector_num;
     }else if(pos < (CAPACITY_OF_DIRECT + CAPACITY_OF_INDIRECT + CAPACITY_OF_DOUBLE_INDIRECT) * BLOCK_SECTOR_SIZE){
         block_sector_t table_pos = (pos - (CAPACITY_OF_DIRECT * BLOCK_SECTOR_SIZE + CAPACITY_OF_INDIRECT*BLOCK_SECTOR_SIZE )) / (BLOCK_SECTOR_SIZE * CAPACITY_OF_INDIRECT);
-		struct double_indirect_struct * double_indirect = calloc(1,sizeof(struct double_indirect_struct));
-		block_read (fs_device, inode->data.double_indirect, double_indirect);
-		struct indirect_struct * indirect = calloc(1,sizeof(struct indirect_struct));
-		block_read (fs_device, double_indirect->indirect[table_pos], indirect);
-		off_t before_table_bytes = table_pos*(CAPACITY_OF_INDIRECT*BLOCK_SECTOR_SIZE);
-		block_sector_t indirect_pos = (pos - (CAPACITY_OF_DIRECT * BLOCK_SECTOR_SIZE + CAPACITY_OF_INDIRECT*BLOCK_SECTOR_SIZE + before_table_bytes)) %BLOCK_SECTOR_SIZE ;
-		block_sector_t real_file_sector_num = indirect->direct[indirect_pos];
+        
+        
+        struct double_indirect_struct * double_indirect = calloc(1,sizeof(struct double_indirect_struct));
+        block_read (fs_device, inode->data.double_indirect, double_indirect);
+        
+        
+        struct indirect_struct * indirect = calloc(1,sizeof(struct indirect_struct));
+        block_read (fs_device, double_indirect->indirect[table_pos], indirect);
+
+
+        off_t before_table_bytes = table_pos*(CAPACITY_OF_INDIRECT*BLOCK_SECTOR_SIZE);
+        block_sector_t indirect_pos = (pos - (CAPACITY_OF_DIRECT * BLOCK_SECTOR_SIZE + CAPACITY_OF_INDIRECT*BLOCK_SECTOR_SIZE + before_table_bytes)) / BLOCK_SECTOR_SIZE ;
+        
+        block_sector_t real_file_sector_num = indirect->direct[indirect_pos];
         free(indirect);
-		free(double_indirect);
+        free(double_indirect);
+        
         return real_file_sector_num;
 	}
 
   }
+
+  return -1;
+  
     
-  else
-    return -1;
+ 
+
 }
 
 /* List of open inodes, so that opening a single inode twice
@@ -162,13 +173,11 @@ inode_create (block_sector_t sector, off_t length)
   ASSERT (sizeof *disk_inode == BLOCK_SECTOR_SIZE);
 
 
-
-
   disk_inode = calloc (1, sizeof *disk_inode);
 
-  memset(&disk_inode->direct,-1,sizeof(disk_inode->direct));
-  disk_inode->indirect = -1;
-  disk_inode->double_indirect = -1;
+  memset(&disk_inode->direct,0,sizeof(disk_inode->direct));
+  disk_inode->indirect = 0;
+  disk_inode->double_indirect = 0;
   size_t sectors = bytes_to_sectors (length);
   if (disk_inode != NULL)
     {
@@ -219,10 +228,9 @@ inode_create (block_sector_t sector, off_t length)
             }
 
           }  
-
-        
+       
                 int index_of_indirect_array = i - CAPACITY_OF_DIRECT;//index in indirect array table [0..127]
-                if(free_map_allocate (1, &indirect[index_of_indirect_array])){
+                if(free_map_allocate (1, &indirect->direct[index_of_indirect_array])){
                     static char zeros[BLOCK_SECTOR_SIZE];
                     block_write (fs_device, indirect->direct[index_of_indirect_array], zeros);
                     disk_inode->indirect_num++;
@@ -255,11 +263,11 @@ inode_create (block_sector_t sector, off_t length)
 
               current_indirect_struct_in_double = calloc (1, sizeof (struct indirect_struct));
               ASSERT(current_indirect_struct_in_double != NULL);
-              memset(current_indirect_struct_in_double,0,sizeof(current_indirect_struct_in_double));
+              memset(current_indirect_struct_in_double,0,sizeof(struct indirect_struct));
               double_indirect_table[index_in_double_indirect_table] = true;
 
               //allocate indirect sector on disk and keep it's sector number in double-indirect table
-              if(free_map_allocate (1, &double_indirect[index_in_double_indirect_table])){
+              if(free_map_allocate (1, &double_indirect->indirect[index_in_double_indirect_table])){
 
               }else{
                 break;
@@ -273,7 +281,7 @@ inode_create (block_sector_t sector, off_t length)
           //get empty slot in current
           int empty_slot_indirect = empty_slot_in_indirect_table(current_indirect_struct_in_double);
           //allocate space on disk for real data sector
-          if(free_map_allocate (1, &current_indirect_struct_in_double[empty_slot_indirect])){
+          if(free_map_allocate (1, &current_indirect_struct_in_double->direct[empty_slot_indirect])){
                  static char zeros[BLOCK_SECTOR_SIZE];
                   block_write (fs_device, current_indirect_struct_in_double->direct[empty_slot_indirect], zeros);
                   disk_inode->double_indirect_num++;
@@ -281,7 +289,7 @@ inode_create (block_sector_t sector, off_t length)
           }else{
             break;
           }
-			if(empty_slot_indirect == CAPACITY_OF_INDIRECT-1) {
+			if(empty_slot_indirect == CAPACITY_OF_INDIRECT-1 || i == sectors - 1  ) {
 				//write to disk indirect table which is full
                 block_write (fs_device, double_indirect->indirect[index_in_double_indirect_table-1],current_indirect_struct_in_double);
                 free(current_indirect_struct_in_double);
@@ -322,14 +330,15 @@ inode_create (block_sector_t sector, off_t length)
   return success;
 }
 
+int extend_file(struct inode_disk * disk_inode,off_t offset,off_t size);
+
 int extend_file(struct inode_disk * disk_inode,off_t offset,off_t size){
   off_t length_sectors = bytes_to_sectors(disk_inode->length);
   off_t offset_sectors = bytes_to_sectors(offset + size);
 
-  off_t sectors_to_add = offset_sectors - length_sectors;
 
   
-  size_t i;
+  off_t i;
   bool indirect_structure_created = false;
   bool double_indirect_structure_created = false;
   struct indirect_struct * indirect = NULL;
@@ -363,18 +372,28 @@ int extend_file(struct inode_disk * disk_inode,off_t offset,off_t size){
           memset(indirect,0,sizeof(struct indirect_struct));
           indirect_structure_created = true;
 
-          //allocate indirect sector on disk
-          if(free_map_allocate (1, &disk_inode->indirect)){
+          if(disk_inode->indirect_num == 0){
+              if(free_map_allocate (1,&disk_inode->indirect)){
+                  static char zeros[BLOCK_SECTOR_SIZE];
+                 block_write (fs_device, disk_inode->indirect, zeros);
 
-          }else{
-            return -1;
+
+              }else{
+                break;
+              }
           }
 
-        }  
+
+          block_read(fs_device,disk_inode->indirect,indirect);
+        
+
+        }
+
+
 
       
-              int index_of_indirect_array = i - CAPACITY_OF_DIRECT;//index in indirect array table [0..127]
-              if(free_map_allocate (1, &indirect[index_of_indirect_array])){
+              int index_of_indirect_array = disk_inode->indirect_num;//index in indirect array table [0..127]
+              if(free_map_allocate (1, &indirect->direct[index_of_indirect_array])){
                   static char zeros[BLOCK_SECTOR_SIZE];
                   block_write (fs_device, indirect->direct[index_of_indirect_array], zeros);
                   disk_inode->indirect_num++;
@@ -386,36 +405,53 @@ int extend_file(struct inode_disk * disk_inode,off_t offset,off_t size){
 
         if(!double_indirect_structure_created){
         
-        double_indirect = calloc (1, sizeof (struct double_indirect_struct));
-        ASSERT(double_indirect != NULL);
-        memset(double_indirect,0,sizeof(struct double_indirect_struct));
-        double_indirect_structure_created = true;
+            double_indirect = calloc (1, sizeof (struct double_indirect_struct));
+            ASSERT(double_indirect != NULL);
+            memset(double_indirect,0,sizeof(struct double_indirect_struct));
+            double_indirect_structure_created = true;
 
-        //allocate double_indirect sector on disk
-        if(free_map_allocate (1, &disk_inode->double_indirect)){
+              if(disk_inode->double_indirect_num == 0){
+                  if(free_map_allocate (1,&disk_inode->double_indirect)){
+                      static char zeros[BLOCK_SECTOR_SIZE];
+                      block_write (fs_device,disk_inode->double_indirect, zeros);
 
-        }else{
-          return -1;
-        }
-    }
+
+                  }else{
+                    break;
+                  }
+              }
+
+            block_read(fs_device,disk_inode->double_indirect,double_indirect);
 
         
-        int index_in_double_indirect_table = (i - CAPACITY_OF_DIRECT - CAPACITY_OF_INDIRECT) / CAPACITY_OF_INDIRECT;
+      }
+
+     
+        int index_in_double_indirect_table = (disk_inode->double_indirect_num) / CAPACITY_OF_INDIRECT;
         if(double_indirect_table[index_in_double_indirect_table] == false){
           //free previous structures before allocating new
               
+            
 
             current_indirect_struct_in_double = calloc (1, sizeof (struct indirect_struct));
             ASSERT(current_indirect_struct_in_double != NULL);
-            memset(current_indirect_struct_in_double,0,sizeof(current_indirect_struct_in_double));
+            memset(current_indirect_struct_in_double,0,sizeof(struct indirect_struct));
             double_indirect_table[index_in_double_indirect_table] = true;
 
-            //allocate indirect sector on disk and keep it's sector number in double-indirect table
-            if(free_map_allocate (1, &double_indirect[index_in_double_indirect_table])){
+            if(double_indirect->indirect[index_in_double_indirect_table] == 0){
+                if(free_map_allocate (1,&double_indirect->indirect[index_in_double_indirect_table])){
+                      static char zeros[BLOCK_SECTOR_SIZE];
+                      block_write (fs_device,double_indirect->indirect[index_in_double_indirect_table], zeros);
 
-            }else{
-              return -1;
+
+                }else{
+                  break;
+                }
+
             }
+
+            block_read(fs_device,double_indirect->indirect[index_in_double_indirect_table],
+                current_indirect_struct_in_double);
 
 
         }
@@ -425,7 +461,7 @@ int extend_file(struct inode_disk * disk_inode,off_t offset,off_t size){
         //get empty slot in current
         int empty_slot_indirect = empty_slot_in_indirect_table(current_indirect_struct_in_double);
         //allocate space on disk for real data sector
-        if(free_map_allocate (1, &current_indirect_struct_in_double[empty_slot_indirect])){
+        if(free_map_allocate (1, &current_indirect_struct_in_double->direct[empty_slot_indirect])){
                 static char zeros[BLOCK_SECTOR_SIZE];
                 block_write (fs_device, current_indirect_struct_in_double->direct[empty_slot_indirect], zeros);
                 disk_inode->double_indirect_num++;
@@ -433,21 +469,40 @@ int extend_file(struct inode_disk * disk_inode,off_t offset,off_t size){
         }else{
           return -1;
         }
-    if(empty_slot_indirect == CAPACITY_OF_INDIRECT-1) {
+    if(empty_slot_indirect == CAPACITY_OF_INDIRECT-1 || i == offset_sectors-1) {
       //write to disk indirect table which is full
-              block_write (fs_device, double_indirect->indirect[index_in_double_indirect_table-1],current_indirect_struct_in_double);
+              block_write (fs_device, double_indirect->indirect[index_in_double_indirect_table],current_indirect_struct_in_double);
               free(current_indirect_struct_in_double);
       
-            }
+      }
 
       }
 
 
 }
 
+
+
+    if(i >= offset_sectors){
+
+      if(indirect_structure_created){
+        //write indirect table on disk
+        block_write (fs_device, disk_inode->indirect,indirect);
+          
+      }
+      if(double_indirect_structure_created){
+        block_write (fs_device, disk_inode->double_indirect,double_indirect);
+
+      }
+
+
+  
+    }
+
+    if(indirect != NULL) free(indirect);
+    if(double_indirect != NULL) free(double_indirect);
+  
 disk_inode->length = offset + size;
-
-
 
 return 0;
 }
