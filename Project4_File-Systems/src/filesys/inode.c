@@ -14,8 +14,8 @@
 /* On-disk inode.
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
 
-#define DIRECT_COUNT 121
-#define CAPACITY_OF_DIRECT 121
+#define DIRECT_COUNT 120
+#define CAPACITY_OF_DIRECT 120
 #define CAPACITY_OF_INDIRECT 128
 #define CAPACITY_OF_DOUBLE_INDIRECT 16384 //128 * 128
 
@@ -32,9 +32,12 @@ struct inode_disk
     block_sector_t indirect;
     block_sector_t double_indirect;
 
+
+
     int direct_num;
     int indirect_num;
     int double_indirect_num;
+    bool is_directory;
 
     //uint32_t unused[125];               /* Not used. */
     
@@ -521,9 +524,11 @@ inode_open (block_sector_t sector)
   for (e = list_begin (&open_inodes); e != list_end (&open_inodes);
        e = list_next (e))
     {
+
       inode = list_entry (e, struct inode, elem);
       if (inode->sector == sector)
         {
+
           inode_reopen (inode);
           return inode;
         }
@@ -541,6 +546,7 @@ inode_open (block_sector_t sector)
   inode->deny_write_cnt = 0;
   inode->removed = false;
   block_read (fs_device, inode->sector, &inode->data);
+
   return inode;
 }
 
@@ -566,6 +572,7 @@ inode_get_inumber (const struct inode *inode)
 void
 inode_close (struct inode *inode)
 {
+
   /* Ignore null pointer. */
   if (inode == NULL)
     return;
@@ -579,6 +586,7 @@ inode_close (struct inode *inode)
       /* Deallocate blocks if removed. */
       if (inode->removed)
         {
+       
           free_map_release (inode->sector, 1);
           /*
           free_map_release (inode->data.start,
@@ -659,11 +667,16 @@ inode_close (struct inode *inode)
 
 
         }
-
-
+ 
+        free_map_release (inode->sector, 1);
+      
+      
         }
+      free (inode);  
 
-      free (inode);
+       
+
+     
     }
 }
 
@@ -751,6 +764,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 
   if(offset + size > inode->data.length){
     extend_file(&inode->data,offset,size);
+ 
   }
 
   while (size > 0)
@@ -802,6 +816,8 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
     }
   free (bounce);
 
+  block_write (fs_device, inode->sector, &inode->data);
+
   return bytes_written;
 }
 
@@ -829,5 +845,6 @@ inode_allow_write (struct inode *inode)
 off_t
 inode_length (const struct inode *inode)
 {
+ 
   return inode->data.length;
 }

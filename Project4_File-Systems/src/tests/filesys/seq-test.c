@@ -15,6 +15,7 @@ seq_test (const char *file_name, void *buf, size_t size, size_t initial_size,
   CHECK (create (file_name, initial_size), "create \"%s\"", file_name);
   CHECK ((fd = open (file_name)) > 1, "open \"%s\"", file_name);
 
+
   ofs = 0;
   msg ("writing \"%s\"", file_name);
   while (ofs < size)
