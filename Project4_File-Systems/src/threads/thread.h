@@ -100,6 +100,8 @@ struct thread
     /* Timer */
     int64_t tick_till_wait;
 
+
+
     /* Donations */
     int saved_priority;
     struct list locks;                  /* Locks this thread holds */

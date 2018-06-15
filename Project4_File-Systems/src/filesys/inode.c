@@ -1,5 +1,12 @@
 #include "filesys/inode.h"
 
+#include <debug.h>
+#include <round.h>
+#include <string.h>
+#include "filesys/filesys.h"
+#include "filesys/free-map.h"
+#include "threads/malloc.h"
+
 
 
 
@@ -105,7 +112,7 @@ int empty_slot_in_indirect_table(struct indirect_struct * table){
    Returns true if successful.
    Returns false if memory or disk allocation fails. */
 bool
-inode_create (block_sector_t sector, off_t length)
+inode_create (bool is_directory,block_sector_t sector, off_t length)
 {
   struct inode_disk *disk_inode = NULL;
   bool success = false;
@@ -128,6 +135,7 @@ inode_create (block_sector_t sector, off_t length)
       //size_t sectors = bytes_to_sectors (length);
       disk_inode->length = length;
       disk_inode->magic = INODE_MAGIC;
+      disk_inode->is_directory = is_directory;
     }  
 
     size_t i;

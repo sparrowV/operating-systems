@@ -86,7 +86,7 @@ static tid_t allocate_tid (void);
 static void update_priority(struct thread *t, void*);
 static void update_recent_cpu(struct thread *t, void*);
 static void update_load_avg(void);
-static void set_dir_to_root(struct thread *t);
+
 
 
 
@@ -122,7 +122,9 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
-  set_dir_to_root(initial_thread);
+
+  
+
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -202,22 +204,7 @@ thread_print_stats (void)
           idle_ticks, kernel_ticks, user_ticks);
 }
 
-static void set_dir_to_root(struct thread *t) {
-  block_sector_t sector = 1;
-/* Allocate memory. */
- struct inode * inode= malloc (sizeof(struct inode));
-  /* Initialize. */
-  inode->sector = sector;
-  inode->open_cnt = 0;
-  inode->deny_write_cnt = 0;
-  inode->removed = false;
-  //block_read(physical_disk, inode->sector, &inode->data);
-  /* Create our root_directory dir*/
-  struct dir * dir= malloc(sizeof(struct dir));
-  dir->inode = inode;
 
-  t->process_directory = dir;
-}
 /* Creates a new kernel thread named NAME with the given initial
    PRIORITY, which executes FUNCTION passing AUX as the argument,
    and adds it to the ready queue.  Returns the thread identifier
@@ -285,6 +272,11 @@ thread_create (const char *name, int priority,
     }
 
     update_priority(running, NULL);
+  }
+
+
+  if (thread_current() != initial_thread ){
+    t->process_directory = thread_current()->process_directory;
   }
 
   intr_set_level(old_level);
@@ -678,6 +670,9 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init(&t->locks);
   t->saved_priority = -1;
   t->block_lock = NULL;
+  t->process_directory = NULL;
+ 
+  
 
 #ifdef USERPROG
   int i;
@@ -693,6 +688,9 @@ init_thread (struct thread *t, const char *name, int priority)
 
   enum intr_level old_level = intr_disable ();  
   list_push_back (&all_list, &t->allelem);
+
+  if(t)
+
   intr_set_level (old_level);
 }
 

@@ -10,6 +10,9 @@
 #include "threads/vaddr.h"
 #include "devices/input.h"
 #include "userprog/process.h"
+#include "devices/block.h"
+#include "filesys/directory.h"
+
 
 
 #define PIECE_SIZE 128  /* Size of chunk written on console */
@@ -28,6 +31,8 @@ static void close (struct intr_frame *f);
 static void create (struct intr_frame *f);
 static void remove (struct intr_frame *f);
 static void exit (struct intr_frame *f);
+static void mkdir(struct  intr_frame *f);
+static void chdir(struct  intr_frame *f);
 
 static void exit_helper(int status);
 
@@ -76,11 +81,50 @@ syscall_handler (struct intr_frame *f UNUSED)
   else if (syscall_num == SYS_CREATE) create(f);
   else if (syscall_num == SYS_REMOVE) remove(f);
   else if (syscall_num == SYS_EXIT) exit(f);
+  else if(syscall_num == SYS_MKDIR) mkdir(f);
+  else if(syscall_num == SYS_MKDIR) chdir(f);
+  
   else if (syscall_num == SYS_HALT) shutdown_power_off();
   else if (syscall_num == SYS_PRACTICE) {
     if (!is_valid_ptr(f->esp, sizeof(uint32_t) + sizeof(int))) exit_helper(-1);
     f->eax = args[1] + 1;
   }
+}
+static void chdir(struct intr_frame *f){
+  uint32_t* args = ((uint32_t*) f->esp);
+  int arguments_size = sizeof(uint32_t) + sizeof(char*);
+  if (!is_valid_ptr(args, arguments_size)) exit_helper(-1);
+
+   /* Arguments */
+  const char* file_name = (const char*)args[1];
+
+  if (!is_valid_string(file_name)) exit_helper(-1);
+
+  struct dir * dir = malloc(sizeof(struct dir));
+  char * my_file_name = malloc(strlen(args[1])+1);
+
+  f->eax =  parse_path(args[1],my_file_name,dir,true);
+  thread_current()->process_directory = dir;
+
+
+//free(dir);
+//free(file_name);
+
+
+}
+
+static void mkdir(struct intr_frame *f){
+  uint32_t* args = ((uint32_t*) f->esp);
+  int arguments_size = sizeof(uint32_t) + sizeof(char*);
+  if (!is_valid_ptr(args, arguments_size)) exit_helper(-1);
+
+   /* Arguments */
+  const char* file_name = (const char*)args[1];
+
+  if (!is_valid_string(file_name)) exit_helper(-1);
+  f->eax = filesys_create(file_name,BLOCK_SECTOR_SIZE,true);
+
+
 }
 
 static void
@@ -94,6 +138,7 @@ exec (struct intr_frame *f) {
 
   if (!is_valid_string(file_name)) exit_helper(-1);
   f->eax = process_execute(file_name);
+
 }
 
 static void
@@ -303,7 +348,7 @@ create (struct intr_frame* f)
 
   if (!is_valid_string(file_name)) exit_helper(-1);
   lock_acquire(&filesys_lock);
-  f->eax = filesys_create(file_name, initial_size);
+  f->eax = filesys_create(file_name, initial_size,false);
   lock_release(&filesys_lock);
 }
 
