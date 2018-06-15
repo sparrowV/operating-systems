@@ -124,6 +124,8 @@ struct thread
     struct semaphore status_ready;      /* Signal parent to take status */
 #endif
 
+    struct dir *  process_directory;
+
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };

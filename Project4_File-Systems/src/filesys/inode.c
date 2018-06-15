@@ -1,57 +1,7 @@
 #include "filesys/inode.h"
-#include <list.h>
-#include <debug.h>
-#include <round.h>
-#include <string.h>
-#include "filesys/filesys.h"
-#include "filesys/free-map.h"
-#include "threads/malloc.h"
-
-
-/* Identifies an inode. */
-#define INODE_MAGIC 0x494e4f44
-
-/* On-disk inode.
-   Must be exactly BLOCK_SECTOR_SIZE bytes long. */
-
-#define DIRECT_COUNT 120
-#define CAPACITY_OF_DIRECT 120
-#define CAPACITY_OF_INDIRECT 128
-#define CAPACITY_OF_DOUBLE_INDIRECT 16384 //128 * 128
 
 
 
-
-
-struct inode_disk
-  {
-    //block_sector_t start;               /* First data sector. */
-    off_t length;                       /* File size in bytes. */
-    unsigned magic;                     /* Magic number. */
-    block_sector_t direct[DIRECT_COUNT];
-    block_sector_t indirect;
-    block_sector_t double_indirect;
-
-
-
-    int direct_num;
-    int indirect_num;
-    int double_indirect_num;
-    bool is_directory;
-
-    //uint32_t unused[125];               /* Not used. */
-    
-  };
-
-struct indirect_struct {
-  block_sector_t direct[128];
-
-};
-
-struct double_indirect_struct {
-  block_sector_t indirect[128];
-
-};
 
 
 
@@ -64,16 +14,7 @@ bytes_to_sectors (off_t size)
   return DIV_ROUND_UP (size, BLOCK_SECTOR_SIZE);
 }
 
-/* In-memory inode. */
-struct inode
-  {
-    struct list_elem elem;              /* Element in inode list. */
-    block_sector_t sector;              /* Sector number of disk location. */
-    int open_cnt;                       /* Number of openers. */
-    bool removed;                       /* True if deleted, false otherwise. */
-    int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
-    struct inode_disk data;             /* Inode content. */
-  };
+
 
 /* Returns the block device sector that contains byte offset POS
    within INODE.

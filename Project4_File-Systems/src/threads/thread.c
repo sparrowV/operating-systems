@@ -4,6 +4,9 @@
 #include <random.h>
 #include <stdio.h>
 #include <string.h>
+#include "threads/malloc.h"
+#include "filesys/inode.h"
+#include "filesys/directory.h"
 #include "threads/flags.h"
 #include "threads/interrupt.h"
 #include "threads/intr-stubs.h"
@@ -12,6 +15,8 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "devices/timer.h"
+#include "devices/block.h"
+
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -81,6 +86,10 @@ static tid_t allocate_tid (void);
 static void update_priority(struct thread *t, void*);
 static void update_recent_cpu(struct thread *t, void*);
 static void update_load_avg(void);
+static void set_dir_to_root(struct thread *t);
+
+
+
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -113,7 +122,7 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
-
+  set_dir_to_root(initial_thread);
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -193,6 +202,22 @@ thread_print_stats (void)
           idle_ticks, kernel_ticks, user_ticks);
 }
 
+static void set_dir_to_root(struct thread *t) {
+  block_sector_t sector = 1;
+/* Allocate memory. */
+ struct inode * inode= malloc (sizeof(struct inode));
+  /* Initialize. */
+  inode->sector = sector;
+  inode->open_cnt = 0;
+  inode->deny_write_cnt = 0;
+  inode->removed = false;
+  //block_read(physical_disk, inode->sector, &inode->data);
+  /* Create our root_directory dir*/
+  struct dir * dir= malloc(sizeof(struct dir));
+  dir->inode = inode;
+
+  t->process_directory = dir;
+}
 /* Creates a new kernel thread named NAME with the given initial
    PRIORITY, which executes FUNCTION passing AUX as the argument,
    and adds it to the ready queue.  Returns the thread identifier

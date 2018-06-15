@@ -1,0 +1,248 @@
+		     +--------------------------+
+       	     	     |		CS 140		|
+		     | PROJECT 2: USER PROGRAMS	|
+		     | 	   DESIGN DOCUMENT 	|
+		     +--------------------------+
+
+---- GROUP ----
+
+>> Fill in the names and email addresses of your group members.
+
+Otar Dvalishvili <odval14@freeuni.edu.ge>
+Otar Jankhoteli <ojank14@freeuni.edu.ge>
+Giorgi Kobuladze <gkobu14@freeuni.edu.ge>
+
+
+---- PRELIMINARIES ----
+
+>> If you have any preliminary comments on your submission, notes for the
+>> TAs, or extra credit, please give them here.
+
+>> Please cite any offline or online sources you consulted while
+>> preparing your submission, other than the Pintos documentation, course
+>> text, lecture notes, and course staff.
+
+			   ARGUMENT PASSING
+			   ================
+
+---- DATA STRUCTURES ----
+
+>> A1: Copy here the declaration of each new or changed `struct' or
+>> `struct' member, global or static variable, `typedef', or
+>> enumeration.  Identify the purpose of each in 25 words or less.
+
+არაფერი არ შეგვიცვლია.
+
+
+---- ALGORITHMS ----
+
+>> A2: Briefly describe how you implemented argument parsing.  How do
+>> you arrange for the elements of argv[] to be in the right order?
+>> How do you avoid overflowing the stack page?
+
+process_execute(const char *file_name) ფუნქციას გადმოეცემა გამშვები ფაილის
+სახელი და არგუმენტები ერთ სტრინგად. ამ სტრინგს ვჭრით strtok_r_ით. პირველი 
+ტოკენი შესაბამისად არის გამშვები ფაილის სახელი, დანარჩენი არგუმენტები. შემდეგ
+სახელი გადაეცემა thread_create() ფუნქციას, რომელიც start_process-ს იძახებს და
+შემდეგ იძახება load(), რომელიც setup_stack()-ს გაუშვებს. აქ ხდება არგუმენტების
+ჩალაგება. esp მიმთითებელი უთითებს იუზერის სტეკზე. ჩვენი მიზანია იუზერს ჩავულაგოთ
+არგუმენტები სტეკში, რათა main ფუნქცია სწორად გაეშვას. არგუმენტებს ვალაგებთ მარჯვნიდან
+მარცხნივ, ანუ ყველაზე მაღალ მისამართზე - სტეკის ზემოთ იქნება ბოლო არგუმენტი.
+რეალურად ამას არ აქვს მნიშვნელობა, იმიტომ რომ მაინც სტრინგების მისამართები უნდა 
+გადავცეთ argv სტრინგების მასივში და მთავარია მანდ გადავცეთ სწორად დალაგებულად, 
+მაგრამ მაინც უფრო ინტუიციურია და ზემოთაც სწორი მიმდევრობით ვალაგებთ. შემდეგ 
+სტეკის მისამართს ვწევთ 4-ის ჯერად მისამართზე და მის ქვემოთ ვწერთ 0 იანს სტრინგების
+მასივის ბოლო ელემენტად. ამის შემდეგ ვალაგებთ სტრინგების მისამართებს argv მასივში 
+ბოლოს კი argc-ს მნიშვნელობას ვწერთ. მის ქვემოთ return address-ად ვწერთ 0-ს რომელიც
+რეალურად არაა საჭირო რადგან _start-ის მერე არაფერი არ იძახება და პროგრამა ამთავრებს
+მუშაობას მაგრამ კონვენციისთვის მაინც ასე ვაკეთებთ. overflowing-ს აქ არ ვამოწმებთ.
+ამას უკვე სისტემ ქოლ ჰენდლერებში ვაკეთებთ იმის მიხედვით სწორი იუზერს ეკუთვნის თუ არა 
+მისამართი ვარკვევთ სტეკი გაცდა თუ არა დადგენილ საზღვრებს.
+ 
+
+---- RATIONALE ----
+
+>> A3: Why does Pintos implement strtok_r() but not strtok()?
+
+thread-safe()-ობის გამო. strtok() გლობალურ სტეიტზეა დამოკიდებული რაც
+არაა უსაფრთხო.
+
+
+>> A4: In Pintos, the kernel separates commands into a executable name
+>> and arguments.  In Unix-like systems, the shell does this
+>> separation.  Identify at least two advantages of the Unix approach.
+
+კერნელში ნაკლები დროის გატარება მოუწევს, რადგან შელში მოხდება არგუმენტების ვალიდაცია.
+
+
+
+
+			     SYSTEM CALLS
+			     ============
+
+---- DATA STRUCTURES ----
+
+>> B1: Copy here the declaration of each new or changed `struct' or
+>> `struct' member, global or static variable, `typedef', or
+>> enumeration.  Identify the purpose of each in 25 words or less.
+
+#define MAX_OPEN_FILES 128	// გახსნილი ფაილების ზედა ზღვარი
+#define MAX_CHILDREN 32		// შვილობილი ნაკადების ზედა ზღვარი
+
+// გახსნილი ფაილებისთვის სტრუქტურა
+struct file_desc
+{
+  bool is_open;		
+  struct file *open_file;
+};
+
+// შვილობილ ნაკადზე 
+struct child_thread_inf
+{
+  bool already_waited;		// ნაკადზე მოხდა თუარა wait() გამოძახება
+  bool already_exited;		// ნაკადი მორჩა თუარა მუშაობას
+  tid_t id;			// ნაკადის ნომერი
+  int exit_status;		// ნაკადის სტატუსი რომელსაც გასვლისას ტოვებს
+};
+
+    struct file_desc file_descs[MAX_OPEN_FILES];	// მასივი, რომელშიც ვინახავთ ღია ფაილების
+
+    struct thread *parent;				// მშობელ ნაკადზე მიმთითებელი
+    int waiting_on_thread;				// ნაკადის ნომერი რომელსაც ვუცდით
+    struct child_thread_inf child_arr[MAX_CHILDREN];	// შვილობილი ნაკადების მასივი
+    int child_count;					// ზომა შვილობილი ნაკადების მასივის
+    struct semaphore wait_for_child;			// სემაფორა შვილობილი ნაკადისთვის მოსაცდელად
+    int st;						// ნორმალურად მოხდა ნაკადის დასრულება თუ არა
+    struct file *threads_exec_file;			// მიმთითებელი გამშვებ ფაილზე
+    bool load_successfully;				// წარმატებით მოხდა process.c-ში არსებული load() ფუნქცია თუ არა
+
+
+>> B2: Describe how file descriptors are associated with open files.
+>> Are file descriptors unique within the entire OS or just within a
+>> single process?
+
+ფაილ დესკრიპტორები თითოეულ პროცესს აქვს თავისი. როდესაც მოხდება ფაილის გახსნა,
+პირველივე თავისუფალ ინდექსის დესკრიპტორი ენიჭება ფაილს, ინახება ამ ფაილზე მიმთითებელი
+და is_open ხდება true. დახურვისას შესაბამისად საპირისპირო მნიშვნელობა ენიჭება.
+ამით ვიგებთ რომელი დესკრიპტორი უნდა დავაბრუნოთ. როგორც Linux-ში ვვაბრუნებთ პირველივე
+თავისუფალ დესკრიპტორს.
+
+
+
+---- ALGORITHMS ----
+
+>> B3: Describe your code for reading and writing user data from the
+>> kernel.
+
+თავდაპირველად ვამოწმებთ გადმოცემული ბაფერის ვალიდურობას, არის თუარა იუსერისთვის
+გამოყოფილ მეხსიერებაში, ხომ არ სცდება დადგენილ საზღვრებს. შემდეგ ვიღებთ ფაილსისტემის
+ლოქს, რათა კონკურენტულად არ მოხდეს ფაილ სისტემის კოდის შესრულება (არაა უსაფრთხო). 
+თუ 0/1 ფაილ დესკრიპტორი გაცმოგვეცა შესაბამისად კონსოლში ხდება მოქმედებები თუ არა 
+და ვამოწმებთ ფაილი რომელიც გადმოცემულ დესკრიპტორშია null ხომ არ არის ანუ ნამდვილად
+გახსნილი გვაქვს. თუ ყველაფერი კარგადაა ვკითხულობთ/ვწერთ თუ არადა -1 სტატუსით ვამთავრებთ
+მუშაობას. exit(-1).
+
+
+>> B4: Suppose a system call causes a full page (4,096 bytes) of data
+>> to be copied from user space into the kernel.  What is the least
+>> and the greatest possible number of inspections of the page table
+>> (e.g. calls to pagedir_get_page()) that might result?  What about
+>> for a system call that only copies 2 bytes of data?  Is there room
+>> for improvement in these numbers, and how much?
+
+აქ მთლად კარგად არაა საქმე, იმიტომ რომ დასაწყისს ვამოწმებთ მარტო, რაც სწრაფია
+და რადგანაც ტესტებსაც გადის ასე დავტოვეთ. მიუხედავად იმისა, რომ უსაფრთხო არაა
+page_fault-ის შემთხვევაში exit(-1) მოხდება და სიტუაციაც მოგვარდება.
+
+>> B5: Briefly describe your implementation of the "wait" system call
+>> and how it interacts with process termination.
+
+მშობელ ნაკადს აქვს შვილი ნაკადების სია.wait-ს გადმოეცემა ნაკადის id-ი.პირველ
+რიგში ვამოწმებთ ეს ნაკადი არის თუ არა მოცემული ნაკადის შვილი.თუ არის,მაშინ 
+ვნახულობთ უკვე დასრულებული აქვს თუ არა მუშაობა და უკვე დალოდებული აქვს თუ არა.
+თუ დასრულებული აქვს მუშაოაბა ან მეორეჯერ ვცდილობთ დალოდებას ,მაშინ ვაბრუნებთ -1.
+თუ არ დასრულებულა შვილი ნაკადი/პირველად ველოდებით, მაშინ ველოდებით, სანამ შვილინაკადი
+არ დაამთავრებს მუშაობას.
+
+
+>> B6: Any access to user program memory at a user-specified address
+>> can fail due to a bad pointer value.  Such accesses must cause the
+>> process to be terminated.  System calls are fraught with such
+>> accesses, e.g. a "write" system call requires reading the system
+>> call number from the user stack, then each of the call's three
+>> arguments, then an arbitrary amount of user memory, and any of
+>> these can fail at any point.  This poses a design and
+>> error-handling problem: how do you best avoid obscuring the primary
+>> function of code in a morass of error-handling?  Furthermore, when
+>> an error is detected, how do you ensure that all temporarily
+>> allocated resources (locks, buffers, etc.) are freed?  In a few
+>> paragraphs, describe the strategy or strategies you adopted for
+>> managing these issues.  Give an example.
+
+system call-ის დასაწყისში ყველა არგუმენტის მეხსიერების ვალიდურობას
+ვამოწმებთ. თუ არასწორ მისამართებზე წერია არგუმენტები, მაშინ ვიძახებთ
+exit-შ.ალოკაცია მეხსიერების ან ლოქების არ ხდება,სანამ არგუმენტების
+მისამართების ვალიდურობა არ შემოწმდება. თუ page_fault მაინც მოხდა 
+exeption.c page_fault() ფუნქციაში ხდება გადამისამართება და მანდ 
+ვამოწმებთ ჯერ არადამეპილ მეხსიერებაზე ხდება წვდომა თუ იუზერი კერნელის
+მეხსიერებაზე აფათურებს ხელს და ვამთავრებთ მუშაობას -1 სტატუს კოდით.
+
+
+---- SYNCHRONIZATION ----
+
+>> B7: The "exec" system call returns -1 if loading the new executable
+>> fails, so it cannot return before the new executable has completed
+>> loading.  How does your code ensure this?  How is the load
+>> success/failure status passed back to the thread that calls "exec"?
+
+თითოეულ ნაკადს აქვს შვილი ნაკადის ჩატვირთვის სტატუსი.ჩვენთან ეს არის 
+load_successfully.მშობელი ნაკადი process_execute()-ში შვილისთვის
+განკუთვნილ სემაფორაზე ელოდება ,სანამ შვილი არ გაზრდის სემაფორის 
+მნიშვნელობას load-ის შემდეგ.იმის მიხედვით თუ success/failure დააბრუნა
+load-მა ,შვილი ნაკადი მშობელის უსეტავს true/false -ს შესაბამისად
+load_successfully-ში.მშობელი ნაკადი შემდეგ ამოწმებს შვილი წარმატებით
+ჩაიტვირთა თუ არა. თუ წარუმატებლად დამთავრდა ,მაშინ აბრუნებს -1, 
+წინააღმდეგ შემთხვევაში ლეგიტიმურ pid-ს.
+
+>> B8: Consider parent process P with child process C.  How do you
+>> ensure proper synchronization and avoid race conditions when P
+>> calls wait(C) before C exits?  After C exits?  How do you ensure
+>> that all resources are freed in each case?  How about when P
+>> terminates without waiting, before C exits?  After C exits?  Are
+>> there any special cases?
+
+თითოეულ ნაკადს აქვს სემაფორა,რომელსაც იყენებს wait-ში შვილი ლოდინისთვის.
+თითოეულ ნაკადს ასევე აქვს სტატუსი(already_exited),რომელიც გვეხმარება 
+გავიგოთ ნაკადმა დაასრულა თუ არა მუშაობა.როდესაც მშობელი ნაკადი იძახებს
+wait-ს რაღაც id-ze,პირველად ვამოწმებთ თუ ყავს ამ Id-ის შესაბამისი შვილი.
+თუ პასუხი დადებითია,მაშინ ვამოწმებთ შვილმა ნაკადს დასრულებული აქვს თუ არა
+მუშაობა.თუ არ აქვს დასრულებული,მაშინ ველოდებით,შვილის სემაფორის მნიშვნელობის
+შემცირებით.როცა შვილი დაამთავრებს მუშაობას და გამოიძახებს Exit-ს ,ის გაზრდის
+მშობელის სემაფორას და მშობელიც დაამთავრებს ლოდინს.თუ მშობელმა ნაკადმა შვილის
+მუშაობის დასრულების შემდეგ გამოიძახა wait-ი,მაშინ ის არ დაელოდება,რადგან 
+already_exited იქნება true.exit_ის დროს ვხურავთ ყველა ფაილს,რომელიც ამ ნაკადმა
+გახსნა.თუ მშობელი მუშაობას შეწყვეტს უფრო ადრე,მაშინ შვილი არ გაზრდის სემაფორას, 
+რადგან ვერ გაივლის შემოწმებას.
+
+---- RATIONALE ----
+
+>> B9: Why did you choose to implement access to user memory from the
+>> kernel in the way that you did?
+
+მეორე გზა რომელიც როგორც პირობაში იყო რეკომენდებული კარგად ვერ გავიგეთ, ამიტომაც
+პირველ გზას დავადექით, უბრალო შემოწმების გზით ვახდენთ ვალიდაციას, რაც საკმაოდ
+მარტივი და პირდაპირი გზაა. თუ რამე არასწორი მისამართია მაშინვე ვამთავრებთ პროცესს
+-1 სტატუსით.
+
+>> B10: What advantages or disadvantages can you see to your design
+>> for file descriptors?
+
+რადგან პირდაპირ ნაკადის სტრუქტურაში ვინახავთ, მეხსიერებას ვიკავებთ მიუხედავად იმისა
+ფაილი გახსნილია თუ არა. რაოდენობაც საკმაოდ შეზღუდულია რადგან რომ გავზარდოთ შეიძლება
+გადაავსოს მეხსიერება. თუმცა დადებითი ისაა რომ რადგანაც მასივში ვინახავავთ სწრაფად 
+ხდება ძებნა - პირდაპირ ინდექსით.
+
+
+>> B11: The default tid_t to pid_t mapping is the identity mapping.
+>> If you changed it, what advantages are there to your approach?
+აქ არ შეგვიცვლია არაფერი.
