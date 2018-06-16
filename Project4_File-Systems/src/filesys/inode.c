@@ -136,6 +136,7 @@ inode_create (bool is_directory,block_sector_t sector, off_t length)
       disk_inode->length = length;
       disk_inode->magic = INODE_MAGIC;
       disk_inode->is_directory = is_directory;
+      
     }  
 
     size_t i;
@@ -708,9 +709,10 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   off_t bytes_written = 0;
   uint8_t *bounce = NULL;
 
-  if (inode->deny_write_cnt)
+  if (inode->deny_write_cnt )
     return 0;
 
+    
   if(offset + size > inode->data.length){
     extend_file(&inode->data,offset,size);
  

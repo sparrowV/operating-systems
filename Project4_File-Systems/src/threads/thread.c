@@ -123,6 +123,10 @@ thread_init (void)
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
 
+   
+
+
+
   
 
 }
@@ -274,10 +278,14 @@ thread_create (const char *name, int priority,
     update_priority(running, NULL);
   }
 
-
-  if (thread_current() != initial_thread ){
-    t->process_directory = thread_current()->process_directory;
+  
+  
+  if(running_thread()->process_directory != NULL){
+    
+   t->process_directory = dir_reopen(running_thread()->process_directory);
   }
+
+  
 
   intr_set_level(old_level);
 

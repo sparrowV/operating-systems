@@ -14,15 +14,22 @@ struct block *fs_device;
 static void do_format (void);
 
 
-bool parse_path(char * path,char * file_name,struct dir * directory,bool searching_for_dir){
+bool parse_path(char * path,char * file_name,struct dir * directory){
 
+
+  ASSERT(thread_current()->process_directory != NULL);
+
+  /*
   if(!(path[0] == '.' || path[0] == '/')){
-     memcpy(directory,dir_open_root(),sizeof(struct dir));
+    printf("file name is %s",path);
+    printf("secotr num is == %d",thread_current()->process_directory->inode->sector);
+     memcpy(directory,thread_current()->process_directory,sizeof(struct dir));
+ 
      strlcpy(file_name,path,strlen(path)+1);
   
      return true;
   }
-
+*/
   //for absolute path
 
     struct dir * root;
@@ -32,13 +39,11 @@ bool parse_path(char * path,char * file_name,struct dir * directory,bool searchi
       root = dir_open_root();
     }else{
        memcpy(directory,thread_current()->process_directory,sizeof(struct dir));
-
        root = thread_current()->process_directory;
-
-
+       //printf("current dir is %d = \n ",root->inode->sector);
     }
    
-    char * temp = malloc(strlen(path)) ;
+    char * temp = malloc(strlen(path)+1);
     memset(temp,0,strlen(path)+1);
  
     size_t i = 0;
@@ -51,14 +56,16 @@ bool parse_path(char * path,char * file_name,struct dir * directory,bool searchi
   
               return false;
           }
-
+          if(!dir_inode->data.is_directory) {
+            return false;
+          }
           directory->inode = dir_inode;
           root = directory;
              
            memset(temp,0,strlen(path)+1);
            temp_index = 0;
            
-        }else if(i!=0){
+        }else if(path[i] != '/' || i!=0){
 
             temp[temp_index] = path[i];
             temp_index++;
@@ -67,16 +74,9 @@ bool parse_path(char * path,char * file_name,struct dir * directory,bool searchi
         i++;
         
     }
-     struct inode * dir_inode = NULL;
+
     strlcpy(file_name,temp,strlen(temp)+1);
-    
-    if(!searching_for_dir && dir_lookup(directory,file_name,&dir_inode)) {
-      return false;
-    }
-
-  
-
-  return true;
+    return true;
 
 
 }
@@ -127,13 +127,13 @@ filesys_create (const char *path, off_t initial_size, bool is_dir)
     return false;
   }
 
-  bool path_found =   parse_path(path,file_name,dir,is_dir);
-
-
-
+  bool path_found = parse_path(path,file_name,dir);
   
-  if(!path_found){
-    free(dir);
+  struct inode * file_inode = NULL;
+  dir_lookup(dir,file_name,&file_inode);
+
+  if(!path_found || file_inode != NULL){
+    dir_close(dir);
     free(file_name);
     return false;
   }
@@ -146,20 +146,23 @@ filesys_create (const char *path, off_t initial_size, bool is_dir)
 
   struct inode * dir_inode = NULL;
   dir_lookup(dir,file_name,&dir_inode);
+  
 
   if(dir_inode == NULL){
 
     return false;
   }
+
   struct dir * newly_created_dir = malloc(sizeof(struct dir));
   newly_created_dir->inode = dir_inode;
   newly_created_dir->pos = 0;
 
    
   if(is_dir){
+    
     dir_add(newly_created_dir,".",inode_sector);
     dir_add(newly_created_dir,"..",dir->inode->sector);
-
+    
   }  
 
 
@@ -168,7 +171,7 @@ filesys_create (const char *path, off_t initial_size, bool is_dir)
   dir_close (dir);
 
   //free(dir);
-  free(file_name);
+  //free(file_name);
 
   return success;
 
@@ -186,21 +189,40 @@ struct file *
 filesys_open (const char *name)
 {
     
+    /*
   struct dir *dir = dir_open_root ();
   struct inode *inode = NULL;
 
   if (dir != NULL)
     dir_lookup (dir, name, &inode);
   dir_close (dir);
-  
-
- /*
+  */
+ struct inode *inode = NULL;
   struct dir * dir = malloc(sizeof(struct dir));
   char * file_name = malloc(strlen(name)+1);
 
-  bool found_path = parse_path(name,file_name,dir,is_dir);
-  */
+  bool found_path = parse_path(name,file_name,dir);
 
+  if(!found_path){
+    //free(dir);
+    dir_close(dir);
+    free(file_name);
+    return NULL;
+  }
+
+ // printf("in file open dir is %d=\n",dir->inode->sector);
+  if(!dir_lookup(dir,file_name,&inode)){
+    //printf("cant find file %s=",file_name);
+
+   dir_close (dir);
+   free(file_name);
+   return NULL;
+  }
+  
+  if(inode->data.is_directory)
+    inode->deny_write_cnt = 1;
+ 
+  ASSERT(inode != NULL);
   return file_open (inode);
 
 }
@@ -232,8 +254,10 @@ void set_dir_to_root(struct thread *t) {
 
   struct dir * dir= malloc(sizeof(struct dir));
   dir->inode = inode;
+  dir->inode->data.is_directory = true;
 
   t->process_directory = dir;
+  printf("set dir to root name is = %s  ",thread_current()->name);
 }
 
 

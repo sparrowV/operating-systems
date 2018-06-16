@@ -7,11 +7,20 @@
 
 #include "filesys/filesys.h"
 #include "filesys/file.h"
+
 #include "threads/vaddr.h"
 #include "devices/input.h"
 #include "userprog/process.h"
 #include "devices/block.h"
 #include "filesys/directory.h"
+#include "filesys/inode.h"
+
+struct file
+  {
+    struct inode *inode;        /* File's inode. */
+    off_t pos;                  /* Current position. */
+    bool deny_write;            /* Has file_deny_write() been called? */
+  };
 
 
 
@@ -33,6 +42,8 @@ static void remove (struct intr_frame *f);
 static void exit (struct intr_frame *f);
 static void mkdir(struct  intr_frame *f);
 static void chdir(struct  intr_frame *f);
+static void inumber(struct  intr_frame *f);
+
 
 static void exit_helper(int status);
 
@@ -82,7 +93,8 @@ syscall_handler (struct intr_frame *f UNUSED)
   else if (syscall_num == SYS_REMOVE) remove(f);
   else if (syscall_num == SYS_EXIT) exit(f);
   else if(syscall_num == SYS_MKDIR) mkdir(f);
-  else if(syscall_num == SYS_MKDIR) chdir(f);
+  else if(syscall_num == SYS_CHDIR) chdir(f);
+  else if(syscall_num ==  SYS_INUMBER) inumber(f);
   
   else if (syscall_num == SYS_HALT) shutdown_power_off();
   else if (syscall_num == SYS_PRACTICE) {
@@ -90,6 +102,28 @@ syscall_handler (struct intr_frame *f UNUSED)
     f->eax = args[1] + 1;
   }
 }
+
+static void inumber(struct  intr_frame *f){
+  uint32_t* args = ((uint32_t*) f->esp);
+  int arguments_size = sizeof(uint32_t) + sizeof(char*);
+  if (!is_valid_ptr(args, arguments_size)) exit_helper(-1);
+
+   /* Arguments */
+  const char* file_name = (const char*)args[1];
+
+  if (!is_valid_string(file_name)) exit_helper(-1);
+
+  int fd = args[1];
+
+  struct file* file1 = thread_current()->file_descriptors[fd];
+  if(file1 == NULL) exit_helper(-1);
+  f->eax = file1->inode->sector;
+
+
+
+}
+
+
 static void chdir(struct intr_frame *f){
   uint32_t* args = ((uint32_t*) f->esp);
   int arguments_size = sizeof(uint32_t) + sizeof(char*);
@@ -103,8 +137,35 @@ static void chdir(struct intr_frame *f){
   struct dir * dir = malloc(sizeof(struct dir));
   char * my_file_name = malloc(strlen(args[1])+1);
 
-  f->eax =  parse_path(args[1],my_file_name,dir,true);
-  thread_current()->process_directory = dir;
+
+
+  bool path_found = parse_path(file_name,my_file_name,dir);
+  if(!path_found) {
+    dir_close(dir);
+    free(my_file_name);
+    f->eax = false;
+    return;
+  }
+  struct inode * inode = NULL;
+  dir_lookup(dir,my_file_name,&inode);
+  if(inode == NULL || !inode->data.is_directory){
+
+    dir_close(dir);
+    free(my_file_name);
+    f->eax = false;
+    return;
+  }
+
+
+
+  f->eax = true; 
+
+  ASSERT(thread_current()->process_directory != NULL);
+  struct dir * new_dir = malloc(sizeof(struct dir));
+  new_dir->inode = inode;
+
+  thread_current()->process_directory = new_dir;
+  //if(thread_current()->process_directory == NULL) printf("yes\n");
 
 
 //free(dir);
