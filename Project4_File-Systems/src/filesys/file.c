@@ -68,6 +68,9 @@ file_get_inode (struct file *file)
 off_t
 file_read (struct file *file, void *buffer, off_t size)
 {
+   if(file->inode->data.is_directory){
+    return -1;
+  }
   off_t bytes_read = inode_read_at (file->inode, buffer, size, file->pos);
   file->pos += bytes_read;
   return bytes_read;

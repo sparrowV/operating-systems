@@ -197,6 +197,26 @@ dir_remove (struct dir *dir, const char *name)
   inode_close (inode);
   return success;
 }
+int count_dir_childs(struct dir *dir){
+   struct dir_entry e;
+   int count = 0;
+
+  while (inode_read_at (dir->inode, &e, sizeof e, dir->pos) == sizeof e)
+    {
+      dir->pos += sizeof e;
+      if (e.in_use)
+        {
+          if (!(strcmp(e.name, ".") == 0 || strcmp(e.name, "..") == 0)) {
+             // strlcpy (name, e.name, NAME_MAX + 1);
+              count++;
+          }
+          
+        }
+    }
+  return count;
+
+}
+
 
 /* Reads the next directory entry in DIR and stores the name in
    NAME.  Returns true if successful, false if the directory
@@ -211,9 +231,14 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
       dir->pos += sizeof e;
       if (e.in_use)
         {
-          strlcpy (name, e.name, NAME_MAX + 1);
-          return true;
+          if (!(strcmp(e.name, ".") == 0 || strcmp(e.name, "..") == 0)) {
+              strlcpy (name, e.name, NAME_MAX + 1);
+              return true;
+          }
+          
         }
     }
   return false;
 }
+
+

@@ -234,11 +234,55 @@ filesys_open (const char *name)
 bool
 filesys_remove (const char *name)
 {
+
+  /*
   struct dir *dir = dir_open_root ();
   bool success = dir != NULL && dir_remove (dir, name);
   dir_close (dir);
 
   return success;
+  */
+  struct inode *inode = NULL;
+  struct dir * dir = malloc(sizeof(struct dir));
+  char * file_name = malloc(strlen(name)+1);
+
+  if(!parse_path(name,file_name,dir)){
+    return false;
+
+  }
+
+  if(strlen(file_name) == 0){
+    return false;
+  }
+
+  dir_lookup(dir,file_name,&inode);
+
+  if(inode->data.is_directory){
+    struct dir *child_dir = dir_open(inode);
+
+
+
+    int count = count_dir_childs(child_dir);
+    dir_close(child_dir);
+    if (count > 0){
+      dir_close(dir);
+      return false;
+    }
+    
+
+
+  }
+
+  bool success = dir != NULL && dir_remove (dir, name);
+  dir_close (dir);
+
+  return success;
+
+
+
+
+
+
 }
 
 void set_dir_to_root(struct thread *t) {

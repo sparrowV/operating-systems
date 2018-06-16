@@ -43,6 +43,8 @@ static void exit (struct intr_frame *f);
 static void mkdir(struct  intr_frame *f);
 static void chdir(struct  intr_frame *f);
 static void inumber(struct  intr_frame *f);
+static void isdir(struct  intr_frame *f);
+static void readdir(struct  intr_frame *f);
 
 
 static void exit_helper(int status);
@@ -95,6 +97,9 @@ syscall_handler (struct intr_frame *f UNUSED)
   else if(syscall_num == SYS_MKDIR) mkdir(f);
   else if(syscall_num == SYS_CHDIR) chdir(f);
   else if(syscall_num ==  SYS_INUMBER) inumber(f);
+  else if(syscall_num ==  SYS_ISDIR) isdir(f);
+  else if(syscall_num ==  SYS_READDIR) readdir(f);
+
   
   else if (syscall_num == SYS_HALT) shutdown_power_off();
   else if (syscall_num == SYS_PRACTICE) {
@@ -103,13 +108,51 @@ syscall_handler (struct intr_frame *f UNUSED)
   }
 }
 
+static void readdir(struct  intr_frame *f){
+    uint32_t* args = ((uint32_t*) f->esp);
+  int arguments_size = sizeof(uint32_t) + sizeof(char*) + sizeof(int);
+  if (!is_valid_ptr(args, arguments_size)) exit_helper(-1);
+
+   /* Arguments */
+  int fd = args[1]; 
+  char* file_name = (char*)args[2];
+  //if (!is_valid_ptr(buffer, size) || fd < 0 || fd >= MAX_FILE_COUNT) exit_helper(-1);
+   if (fd < 0 || fd >= MAX_FILE_COUNT) exit_helper(-1);
+  if (!is_valid_string(file_name)) exit_helper(-1);
+  struct file* file1 = thread_current()->file_descriptors[fd];
+  if(file1 == NULL) exit_helper(-1);
+  if(!file1->inode->data.is_directory) {
+    f->eax = false;
+    return;
+  }
+
+  f->eax = dir_readdir(( struct dir*)file1,file_name);
+
+
+}
+
+static void isdir(struct  intr_frame *f){
+  uint32_t* args = ((uint32_t*) f->esp);
+  int arguments_size = sizeof(uint32_t) + sizeof(char*);
+  if (!is_valid_ptr(args, arguments_size)) exit_helper(-1);
+
+   /* Arguments */
+  int fd = args[1];
+  if (fd < 0 || fd >= MAX_FILE_COUNT) exit_helper(-1);
+
+  struct file* file1 = thread_current()->file_descriptors[fd];
+  if(file1 == NULL) exit_helper(-1);
+  f->eax = file1->inode->data.is_directory;
+
+}
+
 static void inumber(struct  intr_frame *f){
   uint32_t* args = ((uint32_t*) f->esp);
   int arguments_size = sizeof(uint32_t) + sizeof(char*);
   if (!is_valid_ptr(args, arguments_size)) exit_helper(-1);
 
    /* Arguments */
-  const char* file_name = (const char*)args[1];
+  char* file_name = (char*)args[1];
 
   if (!is_valid_string(file_name)) exit_helper(-1);
 
@@ -130,12 +173,12 @@ static void chdir(struct intr_frame *f){
   if (!is_valid_ptr(args, arguments_size)) exit_helper(-1);
 
    /* Arguments */
-  const char* file_name = (const char*)args[1];
+  char* file_name = (char*)args[1];
 
   if (!is_valid_string(file_name)) exit_helper(-1);
 
   struct dir * dir = malloc(sizeof(struct dir));
-  char * my_file_name = malloc(strlen(args[1])+1);
+  char * my_file_name = malloc(strlen(file_name)+1);
 
 
 
@@ -180,7 +223,7 @@ static void mkdir(struct intr_frame *f){
   if (!is_valid_ptr(args, arguments_size)) exit_helper(-1);
 
    /* Arguments */
-  const char* file_name = (const char*)args[1];
+  char* file_name = (char*)args[1];
 
   if (!is_valid_string(file_name)) exit_helper(-1);
   f->eax = filesys_create(file_name,BLOCK_SECTOR_SIZE,true);
