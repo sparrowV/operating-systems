@@ -1,5 +1,5 @@
-       	 +-------------------------+
-		     |		      CS 140	       |
+       	 	     +-------------------------+
+		     |		CS 140	       |
 		     | PROJECT 4: FILE SYSTEMS |
 		     |	   DESIGN DOCUMENT     |
 		     +-------------------------+
@@ -30,8 +30,50 @@ Giorgi Kobuladze <gkobu14@freeuni.edu.ge>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+#define DIRECT_COUNT 120
+#define CAPACITY_OF_DIRECT 120
+#define CAPACITY_OF_INDIRECT 128
+#define CAPACITY_OF_DOUBLE_INDIRECT 16384 
+
+struct inode_disk
+  {
+    //block_sector_t start;               /* First data sector. */
+    off_t length;                       /* File size in bytes. */
+    unsigned magic;                     /* Magic number. */
+    block_sector_t direct[DIRECT_COUNT];	// პირდაპირი ბლოკების მასივი
+    block_sector_t indirect;			// მიმთითებელი ბლოკების ცხრილზე
+    block_sector_t double_indirect;		// მიმთითებელი ბლოკების ცხრილის ცხრილებზე
+
+
+    int direct_num;			// პირდაპირი ბლოკების რაოდენობა
+    int indirect_num;			// ირიბი ბლოეკბის რაოდენობა
+    int double_indirect_num;		// ორმაგად ირიბი ბლოკების რაოდენობა
+    bool is_directory;   		// ფოლდერს შეესაბამება თუ არა მოცემული აინოუდი
+  };
+
+// ირიბი ბლოკების მასივი
+struct indirect_struct {
+  block_sector_t direct[128];
+
+};
+
+// ორმაგად ირიბი ბლოკების მასივი
+struct double_indirect_struct {
+  block_sector_t indirect[128];
+
+};
+
 >> A2: What is the maximum size of a file supported by your inode
 >> structure?  Show your work.
+
+როგორც პირობაში იყო ნათქვამი ფაილური სისტემის მაქსიმალური ტევადობა 8 MB
+არ აღემატება, ამიტომაც ჩვენ გადავწვიტეთ გამოგვეყენებინა indirection-ის
+ორმაგი დონე რაც შემდეგში მდგომარეობს:
+გვაქვს 120 პირდაპირ შესაბამისობაში ბლოკი რაც იძლევა 120*512 ბაიტს.
+128 ბლოკი რომელთაგან თითო 512-იან ბლოკს შეესაბამება
+და კიდევ 128 ცალი ასეთი ბლოკი.
+ჯამში 120*520 + 128*512 + 128*128*512 = 8515584 B ~ 8.1 MB
+
 
 ---- SYNCHRONIZATION ----
 
@@ -59,6 +101,13 @@ Giorgi Kobuladze <gkobu14@freeuni.edu.ge>
 >> indirect blocks?  If not, why did you choose an alternative inode
 >> structure, and what advantages and disadvantages does your
 >> structure have, compared to a multilevel index?
+
+კი multilevel index სტრუქტურას შეესაბამება. ინდირექშენის ეს დონე
+რაც ჩვენ გქაქვს - 2 დონის, სავსებით საკმარისი იყო 8 MB_იანი დისკისთვის, 
+ამიტომაც ამაზე მეტი აღარ დაგვიმატებია. რაც შეეხება რატომ ეს კონკრეტული
+სტრუქტურა და არა სხვა, ასე ვამჯობინეთ, რადგან ფაილის მაქსიმალური ზომის
+გაზრდა საკმაოდ მარტივად შეიძლება ინდირექშენის დონის გაზრდით. ასევე ბლოკებზე
+მიმართვაც სწრაფად მოხდება.
 
 			    SUBDIRECTORIES
 			    ==============
