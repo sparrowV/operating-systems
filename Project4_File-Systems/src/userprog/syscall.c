@@ -189,13 +189,15 @@ static void chdir(struct intr_frame *f){
     return;
   }
 
-  printf("file name is %s",my_file_name);
+  printf("file name is %s\n",my_file_name);
 
   ASSERT(dir != NULL);
   struct inode * inode = NULL;
   dir_lookup(dir,my_file_name,&inode);
+  printf("AFTER DIR_LOOKUP\n");
   if(inode == NULL || !inode->data.is_directory){
-
+    ASSERT(inode != NULL);
+    printf("INODE IS NULL RETURN FALSE\n");
     dir_close(dir);
     free(my_file_name);
     f->eax = false;
@@ -205,7 +207,7 @@ static void chdir(struct intr_frame *f){
 
 
   f->eax = true; 
-
+  printf("RETURN TRUE\n");
   ASSERT(thread_current()->process_directory != NULL);
   struct dir * new_dir = malloc(sizeof(struct dir));
   new_dir->inode = inode;
