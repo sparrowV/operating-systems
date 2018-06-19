@@ -63,15 +63,23 @@ struct double_indirect_struct {
 
 };
 
+struct inode
+  {
+   	...
+    struct lock inode_lock;             /* Serialize inode access*/
+  };
+
 >> A2: What is the maximum size of a file supported by your inode
 >> structure?  Show your work.
 
 როგორც პირობაში იყო ნათქვამი ფაილური სისტემის მაქსიმალური ტევადობა 8 MB
 არ აღემატება, ამიტომაც ჩვენ გადავწვიტეთ გამოგვეყენებინა indirection-ის
 ორმაგი დონე რაც შემდეგში მდგომარეობს:
-გვაქვს 120 პირდაპირ შესაბამისობაში ბლოკი რაც იძლევა 120*512 ბაიტს.
-128 ბლოკი რომელთაგან თითო 512-იან ბლოკს შეესაბამება
-და კიდევ 128 ცალი ასეთი ბლოკი.
+
+გვაქვს 120 პირდაპირ შესაბამისობაში ბლოკი რაც იძლევა - 120*512 ბაიტს.
+128 ბლოკი რომელთაგან თითო 512-იან ბლოკს შეესაბამება - 128*512 ბაიტი.
+და კიდევ 128 ცალი ასეთი სია, რომელთაგან თითოეული 128*512 ბაიტს დაიტევს ე.ი 128*12*512.
+
 ჯამში 120*520 + 128*512 + 128*128*512 = 8515584 B ~ 8.1 MB
 
 
@@ -79,6 +87,10 @@ struct double_indirect_struct {
 
 >> A3: Explain how your code avoids a race if two processes attempt to
 >> extend a file at the same time.
+
+ამისთვის ვიყენებთ inode სტრუქტურაში არსებულ inode_lock-ს. ფაილის გაზრდისას
+პროცესმა ეს ლოქი უნდა აიღოს. იმ შემთხვევაში თუ სხვას აქვს არსებული ლოქი 
+მაშინ ელოდება მის გათავისუფლებას და შემდეგ ზრდის.
 
 >> A4: Suppose processes A and B both have file F open, both
 >> positioned at end-of-file.  If A reads and B writes F at the same
@@ -93,6 +105,9 @@ struct double_indirect_struct {
 >> prevent forever another process from writing the file, and many
 >> processes writing to a file cannot prevent another process forever
 >> from reading the file.
+
+ამას ძალიან მარტივად ვაგვარებთ. რიდერებს საერთოდ არ ვლოქავთ ამიტომ მოცდის
+პრობლემა საერდოთ არ დგას და ყველაფერი სამართლიანად ხდება.
 
 ---- RATIONALE ----
 
@@ -117,6 +132,10 @@ struct double_indirect_struct {
 >> B1: Copy here the declaration of each new or changed `struct' or
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
+
+struct thread {
+	struct dir *  process_directory;	// პროცესის დირექტორია
+}
 
 ---- ALGORITHMS ----
 
