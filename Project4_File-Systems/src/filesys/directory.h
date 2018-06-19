@@ -24,6 +24,7 @@ struct dir
   {
     struct inode *inode;                /* Backing store. */
     off_t pos;                          /* Current position. */
+    struct lock directory_lock;
   };
 
 /* A single directory entry. */

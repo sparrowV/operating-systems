@@ -32,13 +32,6 @@ void release_inode(struct inode *inode);
 static block_sector_t
 byte_to_sector (const struct inode *inode, off_t pos)
 {
-  /*
-  ASSERT (inode != NULL);
-  if (pos < inode->data.length)
-    return inode->data.start + pos / BLOCK_SECTOR_SIZE;
-  else
-    return -1;
-    */
 
   ASSERT (inode != NULL);
   if (pos < inode->data.length){
@@ -49,7 +42,7 @@ byte_to_sector (const struct inode *inode, off_t pos)
     }else if(pos < (CAPACITY_OF_DIRECT + CAPACITY_OF_INDIRECT) * BLOCK_SECTOR_SIZE){
         block_sector_t indirect_sector_num = (pos - CAPACITY_OF_DIRECT * BLOCK_SECTOR_SIZE) / BLOCK_SECTOR_SIZE;
         struct indirect_struct * indirect = calloc(1,sizeof(struct indirect_struct));
-		
+    
         //get indirect structure so we can get the real file location
         block_read (fs_device, inode->data.indirect, indirect);
         block_sector_t real_file_sector_num = indirect->direct[indirect_sector_num];
@@ -75,14 +68,11 @@ byte_to_sector (const struct inode *inode, off_t pos)
         free(double_indirect);
         
         return real_file_sector_num;
-	}
+  }
 
   }
 
   return -1;
-  
-    
- 
 
 }
 
@@ -114,7 +104,7 @@ int empty_slot_in_indirect_table(struct indirect_struct * table){
    Returns true if successful.
    Returns false if memory or disk allocation fails. */
 bool
-inode_create (bool is_directory,block_sector_t sector, off_t length)
+inode_create (bool is_directory,block_sector_t sector, off_t length,struct inode * inode)
 {
   struct inode_disk *disk_inode = NULL;
   bool success = false;
@@ -207,7 +197,7 @@ inode_create (bool is_directory,block_sector_t sector, off_t length)
           }else{
             break;
           }
-		 }
+     }
 
           
           int index_in_double_indirect_table = (i - CAPACITY_OF_DIRECT - CAPACITY_OF_INDIRECT) / CAPACITY_OF_INDIRECT;
@@ -232,22 +222,21 @@ inode_create (bool is_directory,block_sector_t sector, off_t length)
 
           /*now let's allocate real data sectors */
           
-          //get empty slot in current
           int empty_slot_indirect = empty_slot_in_indirect_table(current_indirect_struct_in_double);
           //allocate space on disk for real data sector
           if(free_map_allocate (1, &current_indirect_struct_in_double->direct[empty_slot_indirect])){
                  static char zeros[BLOCK_SECTOR_SIZE];
                   block_write (fs_device, current_indirect_struct_in_double->direct[empty_slot_indirect], zeros);
                   disk_inode->double_indirect_num++;
-				
+        
           }else{
             break;
           }
-			if(empty_slot_indirect == CAPACITY_OF_INDIRECT-1 || i == sectors - 1  ) {
-				//write to disk indirect table which is full
+      if(empty_slot_indirect == CAPACITY_OF_INDIRECT-1 || i == sectors - 1  ) {
+        //write to disk indirect table which is full
                 block_write (fs_device, double_indirect->indirect[index_in_double_indirect_table-1],current_indirect_struct_in_double);
                 free(current_indirect_struct_in_double);
-				
+        
               }
 
         }
@@ -279,7 +268,10 @@ inode_create (bool is_directory,block_sector_t sector, off_t length)
     if(indirect != NULL) free(indirect);
     if(double_indirect != NULL) free(double_indirect);
   
-
+  if(inode != NULL){
+  list_remove(&inode->elem);
+  list_push_front (&open_inodes, &inode->elem);
+  }
   
   return success;
 }
@@ -481,7 +473,9 @@ inode_open (block_sector_t sector)
       if (inode->sector == sector)
         {
          // printf("sqqqqqq\n\n");
-
+          if(inode->removed){
+            return NULL;
+          }
           inode_reopen (inode);
           return inode;
         }
@@ -498,7 +492,8 @@ inode_open (block_sector_t sector)
 
   /* Initialize. */
   list_push_front (&open_inodes, &inode->elem);
-  
+
+//printf("got here\n\n");
   lock_init(&inode->inode_lock);
   inode->sector = sector;
   inode->open_cnt = 1;
@@ -539,24 +534,18 @@ inode_close (struct inode *inode)
   if (inode == NULL)
     return;
 
-  lock_inode(&inode->inode_lock);
-
+  lock_inode(inode);
   /* Release resources if this was the last opener. */
   if (--inode->open_cnt == 0)
     {
       /* Remove from inode list and release lock. */
       list_remove (&inode->elem);
-
       /* Deallocate blocks if removed. */
       if (inode->removed)
         {
        
           free_map_release (inode->sector, 1);
-          /*
-          free_map_release (inode->data.start,
-                            bytes_to_sectors (inode->data.length));
-                            */
-
+        
 
         size_t i;
         bool has_finished_deleting = false;                    
@@ -637,23 +626,21 @@ inode_close (struct inode *inode)
       
         }
       free (inode);  
-
-       
-
-     
     }
-    release_inode(&inode->inode_lock);
+
+    release_inode(inode);
 }
 
 /* Marks INODE to be deleted when it is closed by the last caller who
    has it open. */
 void
 inode_remove (struct inode *inode)
-{ 
-  lock_inode(&inode->inode_lock);
+{
+
+  lock_inode(inode);
   ASSERT (inode != NULL);
   inode->removed = true;
-  release_inode(&inode->inode_lock);
+  release_inode(inode);
 }
 
 
@@ -730,7 +717,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
     return 0;
   }
   
-  lock_inode(&inode->inode_lock);
+  lock_inode(inode);
   if(offset + size > inode->data.length){
     extend_file(&inode->data,offset,size);
  
@@ -786,7 +773,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   free (bounce);
 
   block_write (fs_device, inode->sector, &inode->data);
-  release_inode(&inode->inode_lock);
+  release_inode(inode);
   return bytes_written;
 }
 
@@ -795,10 +782,10 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 void
 inode_deny_write (struct inode *inode)
 { 
-  lock_inode(&inode->inode_lock);
+  lock_inode(inode);
   inode->deny_write_cnt++;
   ASSERT (inode->deny_write_cnt <= inode->open_cnt);
-  release_inode(&inode->inode_lock);
+  release_inode(inode);
 }
 
 /* Re-enables writes to INODE.
@@ -807,11 +794,11 @@ inode_deny_write (struct inode *inode)
 void
 inode_allow_write (struct inode *inode)
 {
-  lock_inode(&inode->inode_lock);
+  lock_inode(inode);
   ASSERT (inode->deny_write_cnt > 0);
   ASSERT (inode->deny_write_cnt <= inode->open_cnt);
   inode->deny_write_cnt--;
-  release_inode(&inode->inode_lock);
+  release_inode(inode);
 }
 
 /* Returns the length, in bytes, of INODE's data. */
@@ -822,11 +809,6 @@ inode_length (const struct inode *inode)
   return inode->data.length;
 }
 
-void lock_inode(struct inode *inode) {
-  // lock_acquire(&inode->inode_lock);
-  // lock_release(&inode->inode_lock);
-}
+void lock_inode(struct inode *inode UNUSED) {}
 
-void release_inode(struct inode *inode) {
-  //lock_release(&inode->inode_lock);
-}
+void release_inode(struct inode *inode UNUSED) {}

@@ -179,8 +179,9 @@ static void chdir(struct intr_frame *f){
   char * my_file_name = malloc(strlen(file_name)+1);
 
 
-   //printf("creating dir with name %s\n",file_name); 
+   
   bool path_found = parse_path(file_name,my_file_name,&dir);
+  //printf("creating dir with name %s\n",file_name); 
   if(!path_found) {
 
     dir_close(dir);
@@ -193,9 +194,16 @@ static void chdir(struct intr_frame *f){
 
   ASSERT(dir != NULL);
   struct inode * inode = NULL;
-  dir_lookup(dir,my_file_name,&inode);
-  //printf("AFTER DIR_LOOKUP\n");
-  if(inode == NULL || !inode->data.is_directory){
+  bool found = dir_lookup(dir,my_file_name,&inode);
+ 
+  if(inode ->removed || !found){
+     printf("AFTER DIR_LOOKUP\n");
+      dir_close(dir);
+    free(my_file_name);
+    f->eax = false;
+    return;
+  }
+  if( (inode == NULL || !inode->data.is_directory) && !(strcmp(file_name,"/") == 0)){
     ASSERT(inode != NULL);
     //printf("INODE IS NULL RETURN FALSE\n");
     dir_close(dir);
@@ -209,10 +217,11 @@ static void chdir(struct intr_frame *f){
   f->eax = true; 
  // printf("RETURN TRUE\n");
   ASSERT(thread_current()->process_directory != NULL);
-  struct dir * new_dir = malloc(sizeof(struct dir));
-  new_dir->inode = inode;
+ // struct dir * new_dir = malloc(sizeof(struct dir));
+  
+ 
 
-  thread_current()->process_directory = new_dir;
+  thread_current()->process_directory = dir_open(inode);
   //if(thread_current()->process_directory == NULL) printf("yes\n");
 
 
@@ -236,9 +245,9 @@ static void mkdir(struct intr_frame *f){
 
 
  // printf("cheking mkdir\n\n");
-  struct dir * dir = dir_open_root();
-  struct inode * dir_inode = NULL;
-  dir_lookup(dir,"  ",&dir_inode);
+ // struct dir * dir = dir_open_root();
+  //struct inode * dir_inode = NULL;
+  //dir_lookup(dir,"  ",&dir_inode);
  // printf("chekking dir data length is %d\n\n\n",dir->inode->data.length);
 
 

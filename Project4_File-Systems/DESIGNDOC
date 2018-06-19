@@ -80,7 +80,7 @@ struct inode
 128 ბლოკი რომელთაგან თითო 512-იან ბლოკს შეესაბამება - 128*512 ბაიტი.
 და კიდევ 128 ცალი ასეთი სია, რომელთაგან თითოეული 128*512 ბაიტს დაიტევს ე.ი 128*12*512.
 
-ჯამში 120*520 + 128*512 + 128*128*512 = 8515584 B ~ 8.1 MB
+ჯამში 120*512 + 128*512 + 128*128*512 = 8515584 B ~ 8.1 MB
 
 
 ---- SYNCHRONIZATION ----
@@ -90,7 +90,7 @@ struct inode
 
 ამისთვის ვიყენებთ inode სტრუქტურაში არსებულ inode_lock-ს. ფაილის გაზრდისას
 პროცესმა ეს ლოქი უნდა აიღოს. იმ შემთხვევაში თუ სხვას აქვს არსებული ლოქი 
-მაშინ ელოდება მის გათავისუფლებას და შემდეგ ზრდის.
+მაშინ ელოდება მის გათავისუფლებას და შემდეგ ზრდის ფაილს.
 
 >> A4: Suppose processes A and B both have file F open, both
 >> positioned at end-of-file.  If A reads and B writes F at the same
@@ -98,6 +98,10 @@ struct inode
 >> may not read data other than what B writes, e.g. if B writes
 >> nonzero data, A is not allowed to see all zeros.  Explain how your
 >> code avoids this race.
+
+A ვერ წაიკითხავს length-ზე მეტ ბაიტს რადგან B მაშინ ზრიდს length-ს როდესაც
+დისკზე ჩაწერას ამთავრებს.
+
 
 >> A5: Explain how your synchronization design provides "fairness".
 >> File access is "fair" if readers cannot indefinitely block writers
@@ -132,8 +136,16 @@ struct inode
 >> B1: Copy here the declaration of each new or changed `struct' or
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
+struct dir
+  {
+    ...
+    struct lock directory_lock;     // ლოქი დირექტორიისთვის
+  };
 
-struct thread {
+
+struct thread
+{
+    ...
 	struct dir *  process_directory;	// პროცესის დირექტორია
 }
 
@@ -142,6 +154,18 @@ struct thread {
 >> B2: Describe your code for traversing a user-specified path.  How
 >> do traversals of absolute and relative paths differ?
 
+იუზერის გადმოცემულ path-ს parse_path ფუნქციის საშუალებით ვპარსავთ რომელიც
+filesys.c-ში გვაქვს. პირველ რიგში ვნახულობთ absolute path არის თუ relative.
+absolute არის იმ შემთხვევაში თუ იწყება '/' ან '//' სიმბოლოთი. დანარჩენ 
+შემთხვევაში გვაქვს რელაციური მისამართი. თუ absolute არის მაშინ დირექტორიების ძებნას
+ვიწყებთ რუთიდან, თუ არა და მიმდინარე პროცესის დირექტორიიდან. შემდეგ temp 
+ცვლადში ვინახავთ სლეშებს შორის არსებულ ქვესტრინგებს და ვამოწმებთ მიმდინარე დირექტორია
+ნამდვილად შეიცავს თუ არა ამ ქვესტრინგის სახელის მქონე დირექტორიას. თუ არ შეიცავს ან 
+წაშლილია ან დირექტორია არ არის მაშინ false ვაბრუნებთ, თუ არა და ვანახლებთ მიმდინარე
+დირექტორიას. საბოლოოდ გვრცრბა ფაილის სახელი და დირექტორია რომელიც შეიცავს ამ ფაილს.
+
+
+
 ---- SYNCHRONIZATION ----
 
 >> B4: How do you prevent races on directory entries?  For example,
@@ -149,15 +173,32 @@ struct thread {
 >> should succeed, as should only one of two simultaneous attempts to
 >> create a file with the same name, and so on.
 
+დირექტორიაში ფაილის შექმნისას ან წაშლისას ამ დირექტორიას ვლოქავთ, რათა
+თავიდან ავირიდოთ race condition იმისთვის რომ ერთიდაიგივე სახელის მქონე
+ფაილის შექმნა ან წაშლა 2-ჯერ არ მოხდეს.
+
 >> B5: Does your implementation allow a directory to be removed if it
 >> is open by a process or if it is in use as a process's current
 >> working directory?  If so, what happens to that process's future
 >> file system operations?  If not, how do you prevent it?
 
+კი ჩვენი იმპლემენტაცია იძლევა საშუალებას, რომ დირექტორია წაიშალოს 
+მიუხედავად იმისა გახსნილია თუ არა. უბრალოდ inode-ში removed bool-ს
+ვხდით true-ს. რეალურად დისკზე კი ინფორმაციის წაშლა ხდება მაშინ
+როდესაც გამოიძახება inode_close, რომელიც თავის მხრივ open_count-ს
+ამცირებს და ადარებს 0-ს. 
+
 ---- RATIONALE ----
 
 >> B6: Explain why you chose to represent the current directory of a
 >> process the way you did.
+
+thread სტრუქტურაში ვინახავთ dir სტრუქტურაზე მიმთითებელს. თავიდანვე რაც 
+მოგვაფიქრდა ეს მიდგომა იყო და საკმაოდ მოსახერხებელიც აღმოცნდა. ნაკადს რომელიც
+დისკის ინიციალიზციას ახდენს ესეტება root დირექტორია. შვილ ნაკადებს კი შექმნისას
+მშობლის დირექტორიას ვუსეტავთ თუმცა ერთმანეთისგან დამოუკიდებლები არიან და
+ერთის შეცვლით მეორე არ იცვლება.
+
 
 			     BUFFER CACHE
 			     ============

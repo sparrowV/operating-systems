@@ -36,7 +36,6 @@ struct inode_disk
     block_sector_t double_indirect;
 
 
-
     int direct_num;
     int indirect_num;
     int double_indirect_num;
@@ -71,7 +70,7 @@ struct inode
 
 
 void inode_init (void);
-bool inode_create (bool,block_sector_t, off_t);
+bool inode_create (bool,block_sector_t, off_t,struct inode *);
 struct inode *inode_open (block_sector_t);
 struct inode *inode_reopen (struct inode *);
 block_sector_t inode_get_inumber (const struct inode *);
