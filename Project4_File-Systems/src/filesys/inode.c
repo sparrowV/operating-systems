@@ -112,7 +112,7 @@ int empty_slot_in_indirect_table(struct indirect_struct * table){
    Returns true if successful.
    Returns false if memory or disk allocation fails. */
 bool
-inode_create (bool is_directory,block_sector_t sector, off_t length)
+inode_create (bool is_directory,block_sector_t sector, off_t length,struct inode * inode)
 {
   struct inode_disk *disk_inode = NULL;
   bool success = false;
@@ -277,7 +277,10 @@ inode_create (bool is_directory,block_sector_t sector, off_t length)
     if(indirect != NULL) free(indirect);
     if(double_indirect != NULL) free(double_indirect);
   
-
+  if(inode != NULL){
+  list_remove(&inode->elem);
+  list_push_front (&open_inodes, &inode->elem);
+  }
   
   return success;
 }
@@ -479,7 +482,9 @@ inode_open (block_sector_t sector)
       if (inode->sector == sector)
         {
          // printf("sqqqqqq\n\n");
-
+          if(inode->removed){
+            return NULL;
+          }
           inode_reopen (inode);
           return inode;
         }
@@ -496,6 +501,8 @@ inode_open (block_sector_t sector)
 
   /* Initialize. */
   list_push_front (&open_inodes, &inode->elem);
+
+//printf("got here\n\n");
   
   inode->sector = sector;
   inode->open_cnt = 1;
@@ -541,10 +548,11 @@ inode_close (struct inode *inode)
     {
       /* Remove from inode list and release lock. */
       list_remove (&inode->elem);
-
+    //  printf("dddd\n\n");
       /* Deallocate blocks if removed. */
       if (inode->removed)
         {
+         // printf("removed\n\n");
        
           free_map_release (inode->sector, 1);
           /*
@@ -644,8 +652,11 @@ inode_close (struct inode *inode)
 void
 inode_remove (struct inode *inode)
 {
+
+  
   ASSERT (inode != NULL);
   inode->removed = true;
+  
 }
 
 

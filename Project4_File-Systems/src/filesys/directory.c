@@ -7,7 +7,7 @@
 bool
 dir_create (block_sector_t sector, size_t entry_cnt)
 {
-  return inode_create (true,sector, entry_cnt * sizeof (struct dir_entry));
+  return inode_create (true,sector, entry_cnt * sizeof (struct dir_entry),NULL);
 }
 
 /* Opens and returns the directory for the given INODE, of which
@@ -16,6 +16,7 @@ struct dir *
 dir_open (struct inode *inode)
 {
   struct dir *dir = calloc (1, sizeof *dir);
+  ASSERT(inode != NULL);
   if (inode != NULL && dir != NULL && inode->data.is_directory)
     {
       dir->inode = inode;
@@ -46,6 +47,7 @@ dir_open_root (void)
 struct dir *
 dir_reopen (struct dir *dir)
 {
+  ASSERT(dir->inode != NULL);
   return dir_open (inode_reopen (dir->inode));
 }
 
@@ -123,6 +125,7 @@ dir_lookup (const struct dir *dir, const char *name,
   if (lookup (dir, name, &e, NULL)){
 
     *inode = inode_open (e.inode_sector);
+   
   }
   else
     *inode = NULL;

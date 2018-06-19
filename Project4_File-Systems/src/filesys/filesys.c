@@ -41,7 +41,8 @@ bool parse_path(char * path,char * file_name,struct dir ** directory){
      root = dir_open_root();
       //*directory = root;
     } else{
-      if (thread_current()->process_directory != NULL){
+      if (thread_current()->process_directory != NULL &&
+           thread_current()->process_directory->inode != NULL){
       // memcpy(directory,thread_current()->process_directory,sizeof(struct dir));
        //root = thread_current()->process_directory;
        //printf("sds\n");
@@ -55,8 +56,11 @@ bool parse_path(char * path,char * file_name,struct dir ** directory){
        // printf("path is %s\n",path);
        // printf("here\n");
          thread_current()->process_directory = dir_open_root();
-           memcpy(root->inode,thread_current()->process_directory->inode,sizeof(struct inode));
+          // memcpy(root->inode,thread_current()->process_directory->inode,sizeof(struct inode));
+           root = dir_reopen(thread_current()->process_directory);
         *directory = root;
+
+        
           
 
         //  root = dir_open_root();
@@ -89,7 +93,7 @@ bool parse_path(char * path,char * file_name,struct dir ** directory){
 
           ASSERT(dir_inode != NULL);
 
-          if (!dir_inode->data.is_directory) {
+          if (dir_inode->removed ||  !dir_inode->data.is_directory) {
            // memcpy(thread_current()->process_directory->inode,cur_inode,sizeof(struct inode));
             return false;
           }
@@ -116,7 +120,11 @@ bool parse_path(char * path,char * file_name,struct dir ** directory){
     strlcpy(file_name,temp,strlen(temp)+1);
     //ASSERT(thread_current()->process_directory->inode!= NULL);
     //memcpy(thread_current()->process_directory->inode,cur_inode,sizeof(struct inode));
+
     *directory = root;
+
+    if((*directory)->inode->removed) return false;
+   
     //printf("file name is in parse  = %s\n\n",file_name);
     return true;
 
@@ -193,16 +201,16 @@ filesys_create (const char *path, off_t initial_size, bool is_dir)
   
   bool success = (dir != NULL
                   && free_map_allocate (1, &inode_sector)
-                  && inode_create (is_dir, inode_sector, initial_size)
+                  && inode_create (is_dir, inode_sector, initial_size,dir->inode)
                   && dir_add (dir, file_name, inode_sector));
 
 
   //printf("child num is = %d\n\n",count_dir_childs(dir));
  // printf("success\n");
+
+  
   struct inode * dir_inode = NULL;
   dir_lookup(dir,file_name,&dir_inode);
-  
-
 
   if(dir_inode == NULL){
 
@@ -359,15 +367,17 @@ filesys_remove (const char *name)
 
 
 
-    int count = count_dir_childs(child_dir);
+    int count = count_dir_childs(child_dir); 
+   
     dir_close(child_dir);
     if (count > 0){
       dir_close(dir);
+     // dir_close(child_dir);
       return false;
     }
   }
 
-  bool success = dir != NULL && dir_remove (dir, name);
+  bool success = dir != NULL && dir_remove (dir, file_name);
   dir_close (dir);
 
   return success;
