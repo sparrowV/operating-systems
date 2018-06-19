@@ -27,6 +27,7 @@ check_file_size (int fd, long ofs)
 void
 test_main (void)
 {
+  //printf("hereererer\n\n");
   seq_test ("testfile",
             buf, sizeof buf, 0,
             return_block_size, check_file_size);

@@ -136,7 +136,6 @@ inode_create (bool is_directory,block_sector_t sector, off_t length)
       disk_inode->length = length;
       disk_inode->magic = INODE_MAGIC;
       disk_inode->is_directory = is_directory;
-      
     }  
 
     size_t i;
@@ -478,11 +477,17 @@ inode_open (block_sector_t sector)
       inode = list_entry (e, struct inode, elem);
       if (inode->sector == sector)
         {
+         // printf("sqqqqqq\n\n");
 
           inode_reopen (inode);
           return inode;
         }
     }
+
+
+
+    
+    
 
   /* Allocate memory. */
   inode = malloc (sizeof *inode);
@@ -491,11 +496,15 @@ inode_open (block_sector_t sector)
 
   /* Initialize. */
   list_push_front (&open_inodes, &inode->elem);
+  
   inode->sector = sector;
   inode->open_cnt = 1;
   inode->deny_write_cnt = 0;
   inode->removed = false;
   block_read (fs_device, inode->sector, &inode->data);
+  if(sector  == 1){
+    inode->data.is_directory = true;
+  }
 
   return inode;
 }
@@ -710,9 +719,9 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   uint8_t *bounce = NULL;
 
   if (inode->deny_write_cnt )
-    return 0;
+    return -1;
+  
 
-    
   if(offset + size > inode->data.length){
     extend_file(&inode->data,offset,size);
  

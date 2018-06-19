@@ -249,6 +249,7 @@ sub check_archive {
     my (@output) = read_text_file ("$test.output");
     common_checks ("file system extraction run", @output);
 
+
     @output = get_core_output ("file system extraction run", @output);
     @output = grep (!/^[a-zA-Z0-9-_]+: exit\(\d+\)$/, @output);
     fail join ("\n", "Error extracting file system:", @output) if @output;

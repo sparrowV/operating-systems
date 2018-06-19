@@ -122,6 +122,7 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+  
 
    
 
@@ -228,6 +229,7 @@ tid_t
 thread_create (const char *name, int priority,
                thread_func *function, void *aux)
 {
+
   struct thread *t;
   struct kernel_thread_frame *kf;
   struct switch_entry_frame *ef;
@@ -295,6 +297,7 @@ thread_create (const char *name, int priority,
   /* Check priorities. */
   if (thread_current()->priority < t->priority )
     thread_yield();
+
 
   return tid;
 }
