@@ -151,10 +151,7 @@ static void inumber(struct  intr_frame *f){
   int arguments_size = sizeof(uint32_t) + sizeof(char*);
   if (!is_valid_ptr(args, arguments_size)) exit_helper(-1);
 
-   /* Arguments */
-  char* file_name = (char*)args[1];
 
-  if (!is_valid_string(file_name)) exit_helper(-1);
 
   int fd = args[1];
 
@@ -177,18 +174,24 @@ static void chdir(struct intr_frame *f){
 
   if (!is_valid_string(file_name)) exit_helper(-1);
 
-  struct dir * dir = malloc(sizeof(struct dir));
+ // struct dir * dir = malloc(sizeof(struct dir));
+  struct dir * dir = NULL;
   char * my_file_name = malloc(strlen(file_name)+1);
 
 
-
-  bool path_found = parse_path(file_name,my_file_name,dir);
+   //printf("creating dir with name %s\n",file_name); 
+  bool path_found = parse_path(file_name,my_file_name,&dir);
   if(!path_found) {
+
     dir_close(dir);
     free(my_file_name);
     f->eax = false;
     return;
   }
+
+  printf("file name is %s",my_file_name);
+
+  ASSERT(dir != NULL);
   struct inode * inode = NULL;
   dir_lookup(dir,my_file_name,&inode);
   if(inode == NULL || !inode->data.is_directory){
@@ -226,7 +229,15 @@ static void mkdir(struct intr_frame *f){
   char* file_name = (char*)args[1];
 
   if (!is_valid_string(file_name)) exit_helper(-1);
+  //printf("creating dir with name %s\n",file_name);  
   f->eax = filesys_create(file_name,BLOCK_SECTOR_SIZE,true);
+
+
+ // printf("cheking mkdir\n\n");
+  struct dir * dir = dir_open_root();
+  struct inode * dir_inode = NULL;
+  dir_lookup(dir,"  ",&dir_inode);
+ // printf("chekking dir data length is %d\n\n\n",dir->inode->data.length);
 
 
 }
@@ -397,7 +408,13 @@ open (struct intr_frame* f)
 
   if (!is_valid_string(file_name)) exit_helper(-1);
 
+  if(strlen(file_name) == 0){
+      f->eax = -1;
+    return;
+  }
+
   lock_acquire(&filesys_lock);
+ // printf("opening file with name %s = ",file_name);
   struct file* file = filesys_open(file_name);
   lock_release(&filesys_lock);
 
@@ -406,12 +423,15 @@ open (struct intr_frame* f)
     return;
   }
   struct thread* curr = thread_current();
+  //printf("sdsdffdfdf\n");
   int fd = curr->next_free_fd;
   curr->file_descriptors[fd] = file;
+ // printf("fd  = %d",fd);
   while(curr->next_free_fd != MAX_FILE_COUNT - 1) {
     curr->next_free_fd++;
     if (curr->file_descriptors[curr->next_free_fd] == NULL) break;
   }
+ // printf("sdqqqqqqqqqqqqqqqqqqqqq\n");
   f->eax = fd;
 }
 
@@ -452,6 +472,7 @@ create (struct intr_frame* f)
 
   if (!is_valid_string(file_name)) exit_helper(-1);
   lock_acquire(&filesys_lock);
+  //printf("creating file with name %s = ",file_name);
   f->eax = filesys_create(file_name, initial_size,false);
   lock_release(&filesys_lock);
 }

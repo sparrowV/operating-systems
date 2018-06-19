@@ -26,6 +26,7 @@ dir_open (struct inode *inode)
     }
   else
     {
+     // printf("wowowowowowow\n\n\n\n");
       inode_close (inode);
       free (dir);
       return NULL;
@@ -80,9 +81,14 @@ lookup (const struct dir *dir, const char *name,
 
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
+  
+ // printf("dir sector is  = %d\n\n\n\n",dir->inode->sector);
+  int count = 0;
+  for (ofs = 0; inode_read_at (dir->inode, &e, sizeof e, ofs) ==sizeof e;
+       ofs += sizeof e){
+       //  printf("names = %s\n\n ",e.name);
+ 
 
-  for (ofs = 0; inode_read_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
-       ofs += sizeof e)
     if (e.in_use && !strcmp (name, e.name))
       {
         if (ep != NULL)
@@ -91,6 +97,13 @@ lookup (const struct dir *dir, const char *name,
           *ofsp = ofs;
         return true;
       }
+
+       }
+       count++;
+
+     
+  
+       
   return false;
 }
 
@@ -106,9 +119,11 @@ dir_lookup (const struct dir *dir, const char *name,
 
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
+   // printf("ssddsdsd\n\n");
+  if (lookup (dir, name, &e, NULL)){
 
-  if (lookup (dir, name, &e, NULL))
     *inode = inode_open (e.inode_sector);
+  }
   else
     *inode = NULL;
 
@@ -135,6 +150,11 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   if (*name == '\0' || strlen (name) > NAME_MAX)
     return false;
 
+
+
+
+
+
   /* Check that NAME is not in use. */
   if (lookup (dir, name, NULL, NULL))
     goto done;
@@ -151,6 +171,9 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
     if (!e.in_use)
       break;
 
+
+
+
   /* Write slot. */
   e.in_use = true;
   strlcpy (e.name, name, sizeof e.name);
@@ -158,6 +181,9 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   success = inode_write_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
 
  done:
+
+
+
   return success;
 }
 
@@ -200,7 +226,7 @@ dir_remove (struct dir *dir, const char *name)
 int count_dir_childs(struct dir *dir){
    struct dir_entry e;
    int count = 0;
-
+  dir->pos = 0;
   while (inode_read_at (dir->inode, &e, sizeof e, dir->pos) == sizeof e)
     {
       dir->pos += sizeof e;

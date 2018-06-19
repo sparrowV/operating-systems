@@ -10,8 +10,9 @@ seq_test (const char *file_name, void *buf, size_t size, size_t initial_size,
 {
   size_t ofs;
   int fd;
-
+//printf("got here YES  \n\n");
   random_bytes (buf, size);
+  ;
   CHECK (create (file_name, initial_size), "create \"%s\"", file_name);
   CHECK ((fd = open (file_name)) > 1, "open \"%s\"", file_name);
 
@@ -34,5 +35,6 @@ seq_test (const char *file_name, void *buf, size_t size, size_t initial_size,
     }
   msg ("close \"%s\"", file_name);
   close (fd);
+  
   check_file (file_name, buf, size);
 }

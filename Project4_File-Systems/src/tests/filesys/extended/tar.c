@@ -14,6 +14,7 @@ static bool make_tar_archive (const char *archive_name,
 int
 main (int argc, char *argv[])
 {
+ // printf("main\n\n\n\\n\n");
   if (argc < 3)
     usage ();
 
@@ -53,18 +54,21 @@ make_tar_archive (const char *archive_name, char *files[], size_t file_cnt)
   bool success = true;
   bool write_error = false;
   size_t i;
-
+ // printf("got here1\n");
   if (!create (archive_name, 0))
     {
       printf ("%s: create failed\n", archive_name);
       return false;
     }
   archive_fd = open (archive_name);
+
   if (archive_fd < 0)
     {
       printf ("%s: open failed\n", archive_name);
       return false;
     }
+
+    //printf("got here2\n");
 
   for (i = 0; i < file_cnt; i++)
     {
@@ -75,6 +79,8 @@ make_tar_archive (const char *archive_name, char *files[], size_t file_cnt)
                          archive_fd, &write_error))
         success = false;
     }
+
+    //printf("got here3\n");
 
   if (!do_write (archive_fd, zeros, 512, &write_error)
       || !do_write (archive_fd, zeros, 512, &write_error))
@@ -89,13 +95,16 @@ static bool
 archive_file (char file_name[], size_t file_name_size,
               int archive_fd, bool *write_error)
 {
+ // printf("archive name = %s\n",file_name);
   int file_fd = open (file_name);
+ // printf("fd is  ar chive = %d\n\n",file_fd);
   if (file_fd >= 0)
     {
       bool success;
-
+     // printf("h\n\n\n\n");
       if (inumber (file_fd) != inumber (archive_fd))
         {
+           // printf("inside if\n\n");
           if (!isdir (file_fd))
             success = archive_ordinary_file (file_name, file_fd,
                                              archive_fd, write_error);
@@ -110,7 +119,7 @@ archive_file (char file_name[], size_t file_name_size,
         }
 
       close (file_fd);
-
+    //  printf("successs\n\n");
       return success;
     }
   else
