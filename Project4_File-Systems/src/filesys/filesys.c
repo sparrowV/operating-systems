@@ -16,49 +16,51 @@ static void do_format (void);
 
 bool parse_path(char * path,char * file_name,struct dir ** directory){
 
+/*
   if (thread_current()->process_directory == NULL) {
-    thread_current()->process_directory = dir_open_root();
+    thread_curr
+    0ent()->process_directory = dir_open_root();
+     
   }
-  
+  */
 
 
-  //ASSERT(thread_current()->process_directory != NULL);
-
-  /*
-  if(!(path[0] == '.' || path[0] == '/')){
-    printf("file name is %s",path);
-    printf("secotr num is == %d",thread_current()->process_directory->inode->sector);
-     memcpy(directory,thread_current()->process_directory,sizeof(struct dir));
  
-     strlcpy(file_name,path,strlen(path)+1);
-  
-     return true;
-  }
-*/
   //for absolute path
-    struct inode *cur_inode = malloc(sizeof(struct inode));
-    memcpy(cur_inode,thread_current()->process_directory->inode,sizeof(struct inode));
+    // struct inode *cur_inode = malloc(sizeof(struct inode));
+    // memcpy(cur_inode,thread_current()->process_directory->inode,sizeof(struct inode));
 
-    struct dir * root;
+    struct dir * root = malloc(sizeof(struct dir));
+    root->inode = malloc(sizeof(struct inode));
+    ASSERT(root->inode != NULL);
+    root->pos = 0;
     if(path[0] == '/' ){
       //printf("here comes with name = %s\n",path);
-      //memcpy(directory,dir_open_root(),sizeof(struct dir));
+     // memcpy(root->inode,dir_open_root()->inode,sizeof(struct inode));
 
-      root = dir_open_root();
-      *directory = root;
-    } else {
+     root = dir_open_root();
+      //*directory = root;
+    } else{
       if (thread_current()->process_directory != NULL){
       // memcpy(directory,thread_current()->process_directory,sizeof(struct dir));
-       root = thread_current()->process_directory;
-       *directory = root;
+       //root = thread_current()->process_directory;
+       //printf("sds\n");
+       // memcpy(root->inode,thread_current()->process_directory->inode,sizeof(struct inode));
+        //*directory = root;
+        root = dir_reopen(thread_current()->process_directory);
+
 
       }else{
      //   memcpy(directory,dir_open_root(),sizeof(struct dir));
        // printf("path is %s\n",path);
-        //printf("here\n");
+       // printf("here\n");
+         thread_current()->process_directory = dir_open_root();
+           memcpy(root->inode,thread_current()->process_directory->inode,sizeof(struct inode));
+        *directory = root;
+          
 
-         root = dir_open_root();
-          *directory = root;
+        //  root = dir_open_root();
+        //  *directory = root;
       }
        //printf("current dir is %d = \n ",root->inode->sector);
     }
@@ -72,6 +74,7 @@ bool parse_path(char * path,char * file_name,struct dir ** directory){
     
     while (path[i]!='\0') {
         if (path[i] == '/' && i!=0 ) {
+         
           // double slash case
           if (strlen(temp) == 0) {i++; continue;}
          // printf("dir is %s\n",temp);
@@ -79,7 +82,7 @@ bool parse_path(char * path,char * file_name,struct dir ** directory){
           ASSERT(root != NULL);
 
           if (!dir_lookup(root,temp,&dir_inode)) {
-              memcpy(thread_current()->process_directory->inode,cur_inode,sizeof(struct inode));
+             // memcpy(thread_current()->process_directory->inode,cur_inode,sizeof(struct inode));
 
               return false;
           }
@@ -87,13 +90,15 @@ bool parse_path(char * path,char * file_name,struct dir ** directory){
           ASSERT(dir_inode != NULL);
 
           if (!dir_inode->data.is_directory) {
-            memcpy(thread_current()->process_directory->inode,cur_inode,sizeof(struct inode));
+           // memcpy(thread_current()->process_directory->inode,cur_inode,sizeof(struct inode));
             return false;
           }
 
           ASSERT(directory!= NULL);
-          (*directory)->inode = dir_inode;
-          root =*directory;
+         root->inode = dir_inode;
+          memcpy(root->inode,dir_inode,sizeof(struct inode));
+         // (*directory)->inode = dir_inode;
+           root =dir_open(dir_inode);
              
            memset(temp,0,strlen(path)+1);
            temp_index = 0;
@@ -109,8 +114,9 @@ bool parse_path(char * path,char * file_name,struct dir ** directory){
     }
 
     strlcpy(file_name,temp,strlen(temp)+1);
-    memcpy(thread_current()->process_directory->inode,cur_inode,sizeof(struct inode));
-
+    //ASSERT(thread_current()->process_directory->inode!= NULL);
+    //memcpy(thread_current()->process_directory->inode,cur_inode,sizeof(struct inode));
+    *directory = root;
     //printf("file name is in parse  = %s\n\n",file_name);
     return true;
 
@@ -301,7 +307,7 @@ filesys_open (const char *name)
    // printf("in filyopen dir secotr num is = %d",dir->inode->sector);
     //printf("filename is  = %s \n ",file_name);
    // printf("containig dir not found\n");
-    //printf("cant find file %s=",file_name);
+  //  printf("cant find file %s=",file_name);
 
    dir_close (dir);
    free(file_name);
